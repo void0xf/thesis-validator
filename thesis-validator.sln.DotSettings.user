@@ -1,0 +1,7 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=43164734_002Df486_002D413f_002D838b_002D9c7218df2232/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Explore_Fonts" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;xUnit::871FB478-6040-4FAA-A744-1F98C040DB41::net9.0::backend.Tests.Exploratory.FontExplorationTests.Explore_Fonts&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::871FB478-6040-4FAA-A744-1F98C040DB41::net9.0::backend.Tests.Exploratory.FontExplorationTests.Print_text_with_font_info&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
