@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  grammar-engine:
+    image: erikvl87/languagetool
+    container_name: thesis-grammar-engine
+    # Map localhost:8010 to container:8010
+    ports:
+      - "8010:8010"
+    environment:
+      # OPTIONAL: Tuning Java Memory (Important for laptops)
+      # Give it at least 512MB, but 1GB is safer for long texts.
+      - Java_Xms=512m
+      - Java_Xmx=1g
+    restart: unless-stopped

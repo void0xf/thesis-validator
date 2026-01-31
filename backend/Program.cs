@@ -1,11 +1,20 @@
 using System.Reflection;
+using backend.Endpoints;
 using backend.Models;
 using backend.Services;
+using Backend.Models;
 using ThesisValidator.Rules;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.Configure<UniversityConfig>(
+    builder.Configuration.GetSection("UniversityConfig"));
+
+builder.Services.AddHttpClient<LanguageToolService>();
+builder.Services.AddScoped<LanguageToolService>();
 
 var assembly = typeof(Program).Assembly;
 var ruleTypes = assembly.
@@ -23,9 +32,11 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
+app.MapDocumentEndpoint();
 
 app.UseHttpsRedirection();
 
