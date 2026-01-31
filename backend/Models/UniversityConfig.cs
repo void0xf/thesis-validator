@@ -6,6 +6,7 @@ public class UniversityConfig
 {
     public string Name { get; set; } = "Default University";
     public bool CheckGrammar { get; set; } = true;
+    public string Language { get; set; } = "pl-PL";
     public FormattingConfig Formatting { get; set; } = new FormattingConfig();
 }
 
