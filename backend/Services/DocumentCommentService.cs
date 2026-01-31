@@ -19,7 +19,6 @@ public class DocumentCommentService
     {
         var commentId = _commentIdCounter++;
 
-        // Ensure comments part exists
         var commentsPart = doc.MainDocumentPart!.WordprocessingCommentsPart;
         if (commentsPart == null)
         {
@@ -27,7 +26,6 @@ public class DocumentCommentService
             commentsPart.Comments = new Comments();
         }
 
-        // Create the comment
         var comment = new Comment
         {
             Id = commentId.ToString(),
@@ -42,7 +40,6 @@ public class DocumentCommentService
 
         commentsPart.Comments.AppendChild(comment);
 
-        // Wrap the run with comment range markers
         var parent = run.Parent;
         if (parent == null) return;
 
@@ -50,7 +47,6 @@ public class DocumentCommentService
         var commentRangeEnd = new CommentRangeEnd { Id = commentId.ToString() };
         var commentReference = new Run(new CommentReference { Id = commentId.ToString() });
 
-        // Insert markers around the run
         parent.InsertBefore(commentRangeStart, run);
         parent.InsertAfter(commentRangeEnd, run);
         parent.InsertAfter(commentReference, commentRangeEnd);
@@ -68,7 +64,6 @@ public class DocumentCommentService
             return;
         }
 
-        // If no runs, add a comment at paragraph level
         var commentId = _commentIdCounter++;
 
         var commentsPart = doc.MainDocumentPart!.WordprocessingCommentsPart;
@@ -92,7 +87,6 @@ public class DocumentCommentService
 
         commentsPart.Comments.AppendChild(comment);
 
-        // Add markers at paragraph start
         var commentRangeStart = new CommentRangeStart { Id = commentId.ToString() };
         var commentRangeEnd = new CommentRangeEnd { Id = commentId.ToString() };
         var commentReference = new Run(new CommentReference { Id = commentId.ToString() });
@@ -116,7 +110,6 @@ public class DocumentCommentService
             var runStart = currentOffset;
             var runEnd = currentOffset + runText.Length;
 
-            // Check if the target range overlaps with this run
             if (offset < runEnd && offset + length > runStart)
             {
                 AddCommentToRun(doc, run, commentText, author);
@@ -126,7 +119,6 @@ public class DocumentCommentService
             currentOffset = runEnd;
         }
 
-        // Fallback: add to first run or paragraph
         if (runs.Count > 0)
         {
             AddCommentToRun(doc, runs[0], commentText, author);
@@ -144,10 +136,8 @@ public class DocumentCommentService
     {
         var outputStream = new MemoryStream();
 
-        // Clone the document to the output stream
         using (var clone = doc.Clone(outputStream))
         {
-            // Document is saved when disposed
         }
 
         outputStream.Position = 0;
