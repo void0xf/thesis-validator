@@ -28,5 +28,6 @@ public class LayoutConfig
     public double MarginLeft { get; set; } = 2.5;
     public double MarginRight { get; set; } = 2.5;
     public double RequiredIndentCm { get; set; } = 1.25;
+    public List<int> ParagraphSpacingRule { get; set; } = new List<int>() { 0, 6 };
 }
 
