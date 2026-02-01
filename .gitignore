@@ -62,3 +62,4 @@ backend/output/test_validated_20260130_023857/word/media/image2.png
 backend/output/test_validated_20260130_023857/word/media/image3.png
 backend/output/test_validated_20260130_023857/word/theme/theme1.xml
 backend/output/hello.docx
+backend.Tests/Fixtures/test.docx
