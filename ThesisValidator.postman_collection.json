@@ -1,0 +1,207 @@
+{
+  "info": {
+    "_postman_id": "thesis-validator-api",
+    "name": "Thesis Validator API",
+    "description": "API collection for testing the Thesis Validator backend service.\n\n## Setup\n1. Make sure the backend is running (`dotnet run` in the backend folder)\n2. The API runs on http://localhost:5213 by default\n\n## Testing\n1. Use the Health Check endpoint to verify the service is running\n2. Use the Get Available Rules endpoint to see what validation rules are available\n3. Upload a .docx file using the Validate Document endpoint",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5213",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/documents/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "documents", "health"]
+        },
+        "description": "Check if the document validation service is healthy and running."
+      },
+      "response": [
+        {
+          "name": "Healthy Response",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "health"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"status\": \"Healthy\",\n    \"timestamp\": \"2026-01-29T12:00:00Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Available Rules",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/documents/rules",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "documents", "rules"]
+        },
+        "description": "Get a list of all available validation rules that will be applied to uploaded documents."
+      },
+      "response": [
+        {
+          "name": "Rules List",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "rules"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"rules\": [\n        { \"name\": \"FontFamily\" }\n    ],\n    \"count\": 1\n}"
+        }
+      ]
+    },
+    {
+      "name": "Validate Document",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Select a .docx file to validate"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/documents/validate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "documents", "validate"]
+        },
+        "description": "Upload a .docx thesis document for validation against university formatting rules.\n\n## How to use\n1. Click on 'Body' tab\n2. Select 'form-data'\n3. For the 'file' key, change type to 'File'\n4. Select your .docx file\n5. Send the request"
+      },
+      "response": [
+        {
+          "name": "Valid Document",
+          "originalRequest": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "thesis.docx"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "validate"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"fileName\": \"thesis.docx\",\n    \"fileSize\": 12345,\n    \"validatedAt\": \"2026-01-29T12:00:00Z\",\n    \"isValid\": true,\n    \"totalErrors\": 0,\n    \"totalWarnings\": 0,\n    \"configUsed\": \"Default University\",\n    \"results\": []\n}"
+        },
+        {
+          "name": "Document with Errors",
+          "originalRequest": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "thesis.docx"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "validate"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"fileName\": \"thesis.docx\",\n    \"fileSize\": 12345,\n    \"validatedAt\": \"2026-01-29T12:00:00Z\",\n    \"isValid\": false,\n    \"totalErrors\": 2,\n    \"totalWarnings\": 0,\n    \"configUsed\": \"Default University\",\n    \"results\": [\n        {\n            \"ruleName\": \"FontFamily\",\n            \"message\": \"Invalid font 'Arial' found, expected 'Times New Roman'\",\n            \"isError\": true,\n            \"location\": \"Paragraph 1: \\\"Introduction\\\"\"\n        },\n        {\n            \"ruleName\": \"FontFamily\",\n            \"message\": \"Invalid font 'Calibri' found, expected 'Times New Roman'\",\n            \"isError\": true,\n            \"location\": \"Paragraph 3: \\\"Conclusion\\\"\"\n        }\n    ]\n}"
+        },
+        {
+          "name": "No File Provided",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "validate"]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"title\": \"No file provided\",\n    \"detail\": \"Please upload a .docx file\",\n    \"status\": 400\n}"
+        },
+        {
+          "name": "Invalid File Type",
+          "originalRequest": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "document.pdf"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "validate"]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "body": "{\n    \"title\": \"Invalid file type\",\n    \"detail\": \"Only .docx files are supported\",\n    \"status\": 400\n}"
+        }
+      ]
+    },
+    {
+      "name": "Swagger UI",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/swagger",
+          "host": ["{{baseUrl}}"],
+          "path": ["swagger"]
+        },
+        "description": "Open Swagger UI in a browser to explore the API documentation interactively."
+      },
+      "response": []
+    }
+  ]
+}
