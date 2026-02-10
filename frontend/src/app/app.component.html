@@ -1,0 +1,68 @@
+<div class="min-h-screen flex flex-col">
+  <app-header />
+
+  <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8 md:py-12">
+    @switch (appState()) {
+      @case ('upload') {
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Left column: File Upload -->
+          <div>
+            <app-file-upload (fileChange)="onFileChange($event)" />
+          </div>
+
+          <!-- Right column: Rule Selection -->
+          <div>
+            <app-rule-selector (rulesChange)="onRulesChange($event)" />
+          </div>
+        </div>
+
+        <!-- Validate Button -->
+        <div class="mt-8 flex justify-center">
+          <button
+            type="button"
+            class="btn-primary flex items-center gap-3 text-lg px-8 py-4"
+            [disabled]="!canValidate()"
+            [class.opacity-50]="!canValidate()"
+            [class.cursor-not-allowed]="!canValidate()"
+            (click)="validateDocument()"
+          >
+            <lucide-icon name="file-check" class="w-5 h-5"></lucide-icon>
+            Validate Thesis
+          </button>
+        </div>
+
+        <!-- Validation hint -->
+        @if (!canValidate()) {
+          <p class="text-center font-sans text-sm text-ink-500 mt-4">
+            @if (!selectedFile()) {
+              Upload a .docx file to begin validation
+            } @else if (selectedRules().length === 0) {
+              Select at least one validation rule
+            }
+          </p>
+        }
+      }
+
+      @case ('validating') {
+        <app-validation-progress
+          [steps]="validationSteps"
+          [currentStep]="currentValidationStep()"
+        />
+      }
+
+      @case ('results') {
+        @if (validationResponse()) {
+          <app-validation-results
+            [response]="validationResponse()!"
+            (onDownloadAnnotated)="downloadAnnotated()"
+            (onReset)="reset()"
+          />
+        }
+      }
+    }
+
+    <app-error-toast [message]="errorMessage()" (dismiss)="clearError()" />
+  </main>
+
+  <app-footer />
+</div>
