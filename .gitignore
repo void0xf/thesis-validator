@@ -64,3 +64,6 @@ backend/output/test_validated_20260130_023857/word/theme/theme1.xml
 backend/output/hello.docx
 backend.Tests/Fixtures/test.docx
 /backend.Tests/Fixtures
+frontend/.vscode/extensions.json
+frontend/.vscode/launch.json
+frontend/.vscode/tasks.json
