@@ -1,3 +1,4 @@
+using System.Text.Json;
 using backend.Models;
 using backend.Services;
 using Backend.Models;
@@ -42,6 +43,7 @@ public static class DocumentEndpoint
 
     private static IResult ValidateDocument(
         IFormFile? file,
+        [FromForm] string? rules,
         ThesisValidatorService thesisValidatorService,
         IOptions<UniversityConfig> universityConfigOptions)
     {
@@ -69,7 +71,8 @@ public static class DocumentEndpoint
         {
             using var stream = file.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var results = thesisValidatorService.Validate(stream, config).ToList();
+            var selectedRules = DeserializeRules(rules);
+            var results = thesisValidatorService.Validate(stream, config, selectedRules).ToList();
 
             var response = new DocumentValidationResponse
             {
@@ -98,6 +101,7 @@ public static class DocumentEndpoint
 
     private static IResult ValidateWithComments(
         IFormFile? file,
+        [FromForm] string? rules,
         ThesisValidatorService thesisValidatorService,
         IOptions<UniversityConfig> universityConfigOptions)
     {
@@ -125,36 +129,16 @@ public static class DocumentEndpoint
         {
             using var stream = file.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var (results, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config);
+            var selectedRules = DeserializeRules(rules);
+            var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, selectedRules);
 
-            var resultsList = results.ToList();
-            var errorCount = resultsList.Count(r => r.IsError);
-            var warningCount = resultsList.Count(r => !r.IsError);
+            var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}_annotated.docx";
 
-            var outputFolder = Path.Combine(Directory.GetCurrentDirectory(), "output");
-            Directory.CreateDirectory(outputFolder);
-
-            var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}_validated_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
-            var outputPath = Path.Combine(outputFolder, outputFileName);
-
-            using (var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
-            {
-                annotatedDocument.CopyTo(fileStream);
-            }
-
-            annotatedDocument.Dispose();
-
-            return Results.Ok(new
-            {
-                FileName = file.FileName,
-                OutputPath = outputPath,
-                ValidatedAt = DateTime.UtcNow,
-                IsValid = errorCount == 0,
-                TotalErrors = errorCount,
-                TotalWarnings = warningCount,
-                Results = resultsList,
-                ConfigUsed = config.Name
-            });
+            return Results.File(
+                annotatedDocument,
+                contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                fileDownloadName: outputFileName
+            );
         }
         catch (Exception ex)
         {
@@ -176,6 +160,14 @@ public static class DocumentEndpoint
     private static IResult HealthCheck()
     {
         return Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
+    }
+
+    private static List<string>? DeserializeRules(string? rules)
+    {
+        if (string.IsNullOrWhiteSpace(rules))
+            return null;
+
+        return JsonSerializer.Deserialize<List<string>>(rules);
     }
 }
 
