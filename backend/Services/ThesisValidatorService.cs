@@ -10,12 +10,13 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
 {
     private readonly IReadOnlyList<IValidationRule> _ruleList = rules.ToList();
 
-    public IEnumerable<ValidationResult> Validate(Stream fileStream, UniversityConfig config)
+    public IEnumerable<ValidationResult> Validate(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
         var doc = WordprocessingDocument.Open(fileStream, false);
+        var rulesToRun = FilterRules(selectedRules);
 
         var errors = new List<ValidationResult>();
-        foreach (var rule in _ruleList)
+        foreach (var rule in rulesToRun)
         {
             errors.AddRange(rule.Validate(doc, config));
         }
@@ -27,7 +28,7 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
     /// Validates the document and adds comments for each error found.
     /// Returns both the validation results and a stream containing the annotated document.
     /// </summary>
-    public (IEnumerable<ValidationResult> Results, MemoryStream AnnotatedDocument) ValidateWithComments(Stream fileStream, UniversityConfig config)
+    public (IEnumerable<ValidationResult> Results, MemoryStream AnnotatedDocument) ValidateWithComments(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
         var memoryStream = new MemoryStream();
         fileStream.CopyTo(memoryStream);
@@ -35,9 +36,10 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
 
         using var doc = WordprocessingDocument.Open(memoryStream, true);
         var commentService = new DocumentCommentService();
+        var rulesToRun = FilterRules(selectedRules);
 
         var errors = new List<ValidationResult>();
-        foreach (var rule in _ruleList)
+        foreach (var rule in rulesToRun)
         {
             errors.AddRange(rule.Validate(doc, config, commentService));
         }
@@ -46,5 +48,17 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
         var annotatedStream = DocumentCommentService.SaveDocumentWithComments(doc);
 
         return (errors, annotatedStream);
+    }
+
+    private IReadOnlyList<IValidationRule> FilterRules(IEnumerable<string>? selectedRules)
+    {
+        if (selectedRules is null)
+            return _ruleList;
+
+        var selectedSet = selectedRules.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selectedSet.Count == 0)
+            return _ruleList;
+
+        return _ruleList.Where(r => selectedSet.Contains(r.Name)).ToList();
     }
 }
