@@ -2,6 +2,7 @@
 using backend.Rules;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 
 namespace backend.Services;
@@ -10,7 +11,7 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
 {
     private readonly IReadOnlyList<IValidationRule> _ruleList = rules.ToList();
 
-    public IEnumerable<ValidationResult> Validate(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
+    public (IEnumerable<ValidationResult> Results, List<HeadingInfo> Headings) Validate(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
         var doc = WordprocessingDocument.Open(fileStream, false);
         var rulesToRun = FilterRules(selectedRules);
@@ -21,7 +22,28 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
             errors.AddRange(rule.Validate(doc, config));
         }
 
-        return errors;
+        var headings = ExtractHeadings(doc);
+        return (errors, headings);
+    }
+
+    public static List<HeadingInfo> ExtractHeadings(WordprocessingDocument doc)
+    {
+        var headings = new List<HeadingInfo>();
+        var body = doc.MainDocumentPart?.Document.Body;
+        if (body is null) return headings;
+
+        foreach (var paragraph in body.Descendants<Paragraph>())
+        {
+            var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
+            if (level is null) continue;
+
+            var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text)).Trim();
+            if (string.IsNullOrWhiteSpace(text)) continue;
+
+            headings.Add(new HeadingInfo { Level = level.Value, Text = text });
+        }
+
+        return headings;
     }
 
     /// <summary>
