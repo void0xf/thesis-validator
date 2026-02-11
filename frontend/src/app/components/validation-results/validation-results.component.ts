@@ -6,6 +6,7 @@ import { ResultStatusBannerComponent } from './result-status-banner.component';
 import { ResultStatsGridComponent } from './result-stats-grid.component';
 import { ResultCategoryListComponent } from './result-category-list.component';
 import { ResultAllClearComponent } from './result-all-clear.component';
+import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.component';
 
 @Component({
   selector: 'app-validation-results',
@@ -17,6 +18,7 @@ import { ResultAllClearComponent } from './result-all-clear.component';
     ResultStatsGridComponent,
     ResultCategoryListComponent,
     ResultAllClearComponent,
+    ResultHeadingHierarchyComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -40,6 +42,10 @@ import { ResultAllClearComponent } from './result-all-clear.component';
           (toggleExpanded)="toggleCategoryExpand($event)"
           (toggleAll)="toggleAllCategories()"
         />
+      }
+
+      @if (response.headings.length) {
+        <app-result-heading-hierarchy [headings]="response.headings" />
       }
 
       @if (response.isValid) {
