@@ -55,3 +55,9 @@ public class DocumentLocation
 
     public override string ToString() => Description;
 }
+
+public class HeadingInfo
+{
+    public int Level { get; set; }
+    public string Text { get; set; } = string.Empty;
+}
