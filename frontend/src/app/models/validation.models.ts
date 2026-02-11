@@ -16,6 +16,11 @@ export interface ValidationResult {
   location: DocumentLocation | null;
 }
 
+export interface HeadingInfo {
+  level: number;
+  text: string;
+}
+
 export interface ValidationResponse {
   fileName: string;
   fileSize: number;
@@ -25,6 +30,7 @@ export interface ValidationResponse {
   totalWarnings: number;
   configUsed: string;
   results: ValidationResult[];
+  headings: HeadingInfo[];
 }
 
 export interface RuleInfo {
@@ -77,6 +83,11 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that headings and titles do not end with periods',
     category: 'formatting'
   },
+  'HangingConjunctionRule': {
+    displayName: 'Hanging Conjunctions',
+    description: 'Single-letter conjunctions (a, i, o, u, w, z) must use a non-breaking space',
+    category: 'formatting'
+  },
   'ListConsistencyRule': {
     displayName: 'List Consistency',
     description: 'Validates consistent punctuation and indentation in lists',
@@ -97,10 +108,30 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Validates line spacing rules and their dependencies',
     category: 'layout'
   },
+  'HeadingStyleUsageRule': {
+    displayName: 'Heading Style Usage',
+    description: 'Detects manually formatted headings that should use proper Heading styles',
+    category: 'structure'
+  },
+  'HierarchyDepthRule': {
+    displayName: 'Heading Hierarchy',
+    description: 'Checks that heading levels do not exceed 3 levels deep',
+    category: 'structure'
+  },
+  'FigureCaptionStyleRule': {
+    displayName: 'Figure Captions',
+    description: 'Validates that every figure has a properly styled caption (11pt, centered, no indent)',
+    category: 'structure'
+  },
   'CheckTableOfContents': {
     displayName: 'Table of Contents',
     description: 'Ensures the document contains a Table of Contents',
     category: 'structure'
+  },
+  'EmptySectionStructureRule': {
+    displayName: 'Empty Sections',
+    description: 'Checks that every chapter has introductory text before its first sub-section',
+    category: 'language'
   },
   'Grammar': {
     displayName: 'Grammar & Spelling',
