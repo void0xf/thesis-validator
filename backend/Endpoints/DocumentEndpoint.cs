@@ -72,7 +72,8 @@ public static class DocumentEndpoint
             using var stream = file.OpenReadStream();
             var config = universityConfigOptions.Value;
             var selectedRules = DeserializeRules(rules);
-            var results = thesisValidatorService.Validate(stream, config, selectedRules).ToList();
+            var (validationResults, headings) = thesisValidatorService.Validate(stream, config, selectedRules);
+            var results = validationResults.ToList();
 
             var response = new DocumentValidationResponse
             {
@@ -83,7 +84,8 @@ public static class DocumentEndpoint
                 TotalErrors = results.Count(r => r.IsError),
                 TotalWarnings = results.Count(r => !r.IsError),
                 Results = results,
-                ConfigUsed = config.Name
+                ConfigUsed = config.Name,
+                Headings = headings
             };
 
             return Results.Ok(response);
@@ -181,4 +183,5 @@ public class DocumentValidationResponse
     public int TotalWarnings { get; set; }
     public string ConfigUsed { get; set; } = string.Empty;
     public List<ValidationResult> Results { get; set; } = new();
+    public List<HeadingInfo> Headings { get; set; } = new();
 }
