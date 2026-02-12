@@ -29,8 +29,11 @@ public class LineSpacingDependencyRule : IValidationRule
         if (body == null)
             return errors;
 
+        int paragraphIndex = 0;
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
+            paragraphIndex++;
+
             // Resolve effective line spacing (from paragraph, style, or default)
             var (lineSpacing, lineRule) = ResolveEffectiveLineSpacing(doc, paragraph);
 
@@ -45,6 +48,7 @@ public class LineSpacingDependencyRule : IValidationRule
             {
                 var beforePt = spacingBefore / (double)TwipsPerPoint;
                 var afterPt = spacingAfter / (double)TwipsPerPoint;
+                var preview = GetParagraphPreview(paragraph, 50);
 
                 var errorMessage = $"Paragraph with 1.5 line spacing must have 0pt spacing before and after. " +
                                    $"Found: Before={beforePt:F1}pt, After={afterPt:F1}pt.";
@@ -54,6 +58,11 @@ public class LineSpacingDependencyRule : IValidationRule
                     RuleName = Name,
                     Message = errorMessage,
                     IsError = true,
+                    Location = new DocumentLocation
+                    {
+                        Paragraph = paragraphIndex,
+                        Text = preview
+                    }
                 });
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
@@ -216,5 +225,27 @@ public class LineSpacingDependencyRule : IValidationRule
             return result;
 
         return null;
+    }
+
+    private static string GetParagraphPreview(Paragraph paragraph, int maxLength)
+    {
+        var raw = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+        var clean = SanitizePreview(raw);
+        if (string.IsNullOrEmpty(clean)) return string.Empty;
+        return clean.Length <= maxLength ? clean : clean[..maxLength] + "...";
+    }
+
+    private static string SanitizePreview(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        var sb = new System.Text.StringBuilder(text.Length);
+        foreach (var ch in text)
+        {
+            if (ch == '\u00A0') { sb.Append(' '); continue; }
+            if (char.IsControl(ch)) continue;
+            if (char.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.Format) continue;
+            sb.Append(ch);
+        }
+        return sb.ToString().Trim();
     }
 }
