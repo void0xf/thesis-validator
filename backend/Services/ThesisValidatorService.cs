@@ -23,6 +23,9 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
         }
 
         var headings = ExtractHeadings(doc);
+        var (elementsMap, descendantsMap) = BuildSectionMaps(doc);
+        PopulateSectionContext(errors, elementsMap, descendantsMap);
+
         return (errors, headings);
     }
 
@@ -70,6 +73,107 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
         var annotatedStream = DocumentCommentService.SaveDocumentWithComments(doc);
 
         return (errors, annotatedStream);
+    }
+
+    /// <summary>
+    /// Builds two sorted heading maps — one keyed by direct-child paragraph index
+    /// (<c>Elements&lt;Paragraph&gt;</c>) and one by all-descendants index
+    /// (<c>Descendants&lt;Paragraph&gt;</c>).  Different rules use different traversals,
+    /// so we need both to reliably match a result's paragraph index to a heading.
+    /// </summary>
+    private static (
+        List<(int Index, string Text)> ElementsMap,
+        List<(int Index, string Text)> DescendantsMap
+    ) BuildSectionMaps(WordprocessingDocument doc)
+    {
+        var elementsMap = new List<(int, string)>();
+        var descendantsMap = new List<(int, string)>();
+        var body = doc.MainDocumentPart?.Document.Body;
+        if (body is null) return (elementsMap, descendantsMap);
+
+        // Elements-based map (direct body children only — matches FontFamily, List, Grammar, FigureCaption, EmptySection rules)
+        int elemIdx = 0;
+        foreach (var para in body.Elements<Paragraph>())
+        {
+            elemIdx++;
+            var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
+            if (level is null) continue;
+
+            var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
+            if (string.IsNullOrWhiteSpace(text)) continue;
+
+            elementsMap.Add((elemIdx, text));
+        }
+
+        // Descendants-based map (all paragraphs incl. table cells — matches SingleSpace, Justification, NoDots, Indent, Spacing, LineSpacing, Hierarchy rules)
+        int descIdx = 0;
+        foreach (var para in body.Descendants<Paragraph>())
+        {
+            descIdx++;
+            var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
+            if (level is null) continue;
+
+            var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
+            if (string.IsNullOrWhiteSpace(text)) continue;
+
+            descendantsMap.Add((descIdx, text));
+        }
+
+        return (elementsMap, descendantsMap);
+    }
+
+    /// <summary>
+    /// Rules that iterate <c>body.Elements&lt;Paragraph&gt;()</c> (direct children only).
+    /// All other rules use <c>body.Descendants&lt;Paragraph&gt;()</c>.
+    /// </summary>
+    private static readonly HashSet<string> ElementsBasedRules = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FontFamily",                // FontFamilyValidationRule
+        "ListConsistencyRule",
+        "Grammar",                   // GrammarRule
+        "FigureCaptionStyleRule",
+        "EmptySectionStructureRule",
+        "HeadingStyleUsageRule",
+        "CheckTableOfContents",      // TocRule
+    };
+
+    /// <summary>
+    /// For each validation result, finds the nearest preceding heading and
+    /// writes it into <see cref="DocumentLocation.Section"/>.
+    /// Uses the correct section map based on which paragraph traversal the rule uses.
+    /// </summary>
+    private static void PopulateSectionContext(
+        List<ValidationResult> results,
+        List<(int Index, string Text)> elementsMap,
+        List<(int Index, string Text)> descendantsMap)
+    {
+        foreach (var result in results)
+        {
+            var paraIdx = result.Location?.Paragraph ?? 0;
+            if (paraIdx <= 0) continue;
+
+            var map = ElementsBasedRules.Contains(result.RuleName)
+                ? elementsMap
+                : descendantsMap;
+
+            var section = FindNearestSection(map, paraIdx);
+
+            if (section is not null)
+                result.Location!.Section = section;
+        }
+    }
+
+    private static string? FindNearestSection(List<(int Index, string Text)> map, int paraIdx)
+    {
+        string? nearest = null;
+        foreach (var (idx, text) in map)
+        {
+            if (idx <= paraIdx)
+                nearest = text;
+            else
+                break;
+        }
+        return nearest;
     }
 
     private IReadOnlyList<IValidationRule> FilterRules(IEnumerable<string>? selectedRules)
