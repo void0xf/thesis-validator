@@ -26,8 +26,11 @@ public class ParagraphSpacingRule : IValidationRule
             .Select(pt => pt * TwipsPerPoint)
             .ToHashSet();
 
+        int paragraphIndex = 0;
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
+            paragraphIndex++;
+
             var spacing = paragraph.ParagraphProperties?.SpacingBetweenLines;
             var afterValue = spacing?.After?.Value;
 
@@ -45,17 +48,48 @@ public class ParagraphSpacingRule : IValidationRule
             {
                 var expectedPts = string.Join(" or ", config.Formatting.Layout.ParagraphSpacingRule.Select(pt => $"{pt}pt"));
                 var actualPt = spacingAfter / (double)TwipsPerPoint;
+                var preview = GetParagraphPreview(paragraph, 50);
                 var errorMessage = $"Paragraph has incorrect spacing. After value: {actualPt:F1}pt ({spacingAfter} twips). Expected {expectedPts}.";
                 errors.Add(new ValidationResult
                 {
                     RuleName = Name,
                     Message = errorMessage,
                     IsError = true,
+                    Location = new DocumentLocation
+                    {
+                        Paragraph = paragraphIndex,
+                        Text = preview
+                    }
                 });
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }
         }
 
         return errors;
+    }
+
+    private static string GetParagraphPreview(Paragraph paragraph, int maxLength)
+    {
+        var raw = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+        var clean = SanitizePreview(raw);
+        if (string.IsNullOrEmpty(clean)) return string.Empty;
+        return clean.Length <= maxLength ? clean : clean[..maxLength] + "...";
+    }
+
+    /// <summary>
+    /// Strips invisible / non-printable characters that render as squares in monospace fonts.
+    /// </summary>
+    private static string SanitizePreview(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        var sb = new System.Text.StringBuilder(text.Length);
+        foreach (var ch in text)
+        {
+            if (ch == '\u00A0') { sb.Append(' '); continue; }   // non-breaking space → regular space
+            if (char.IsControl(ch)) continue;                    // strip control chars
+            if (char.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.Format) continue; // strip zero-width/soft-hyphen etc.
+            sb.Append(ch);
+        }
+        return sb.ToString().Trim();
     }
 }
