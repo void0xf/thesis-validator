@@ -49,9 +49,17 @@ public class DocumentLocation
     public string Text { get; set; } = string.Empty;
 
     /// <summary>
+    /// The nearest heading / section this issue falls under (e.g. "1.2 Background").
+    /// Populated automatically after validation.
+    /// </summary>
+    public string Section { get; set; } = string.Empty;
+
+    /// <summary>
     /// Human-readable description of the location.
     /// </summary>
-    public string Description => $"Page {PageNumber}, Line {LineNumber} (Paragraph {Paragraph})";
+    public string Description => string.IsNullOrEmpty(Section)
+        ? $"Paragraph {Paragraph}"
+        : Section;
 
     public override string ToString() => Description;
 }
