@@ -58,7 +58,9 @@ import {
                     <button
                       type="button"
                       class="text-left hover:text-ink-700 underline-offset-2 hover:underline transition-colors"
-                      [title]="result.location.section + ' • Click to copy full text'"
+                      [title]="
+                        result.location.section + ' • Click to copy full text'
+                      "
                       (click)="copyFullText('section', result.location.section)"
                     >
                       {{ truncatedSection }}
@@ -93,7 +95,9 @@ import {
                     <button
                       type="button"
                       class="text-left hover:text-ink-700 underline-offset-2 hover:underline transition-colors"
-                      [title]="result.location.text + ' • Click to copy full text'"
+                      [title]="
+                        result.location.text + ' • Click to copy full text'
+                      "
                       (click)="copyFullText('text', result.location.text)"
                     >
                       "{{ truncatedLocationText }}"
@@ -144,7 +148,10 @@ export class ResultItemComponent {
     return this._result;
   }
 
-  async copyFullText(kind: 'section' | 'text', fullText: string): Promise<void> {
+  async copyFullText(
+    kind: 'section' | 'text',
+    fullText: string,
+  ): Promise<void> {
     if (!fullText) {
       return;
     }
@@ -168,8 +175,7 @@ export class ResultItemComponent {
       try {
         await navigator.clipboard.writeText(text);
         return true;
-      } catch {
-      }
+      } catch {}
     }
 
     try {
