@@ -6,6 +6,7 @@ export interface DocumentLocation {
   characterOffset: number;
   length: number;
   text: string;
+  section: string;
   description: string;
 }
 
@@ -59,7 +60,6 @@ export interface CategoryGroup {
   results: ValidationResult[];
   errorCount: number;
   warningCount: number;
-  expanded: boolean;
 }
 
 export const RULE_METADATA: Record<string, { displayName: string; description: string; category: RuleCategory }> = {
