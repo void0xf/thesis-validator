@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, signal, computed } from '@angular/core';
+import { Component, EventEmitter, Output, signal, computed, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule, Upload, FileText, X, AlertCircle, CheckCircle2 } from 'lucide-angular';
 
@@ -29,9 +29,12 @@ import { LucideAngularModule, Upload, FileText, X, AlertCircle, CheckCircle2 } f
       >
         <input
           type="file"
+          #fileInput
           id="file-input"
           accept=".docx"
           class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          [disabled]="selectedFile() !== null"
+          [class.pointer-events-none]="selectedFile() !== null"
           (change)="onFileSelected($event)"
         />
 
@@ -119,6 +122,7 @@ import { LucideAngularModule, Upload, FileText, X, AlertCircle, CheckCircle2 } f
 })
 export class FileUploadComponent {
   @Output() fileChange = new EventEmitter<File | null>();
+  @ViewChild('fileInput') private fileInput?: ElementRef<HTMLInputElement>;
 
   selectedFile = signal<File | null>(null);
   isDragOver = signal(false);
@@ -186,6 +190,9 @@ export class FileUploadComponent {
     event.stopPropagation();
     this.selectedFile.set(null);
     this.errorMessage.set(null);
+    if (this.fileInput?.nativeElement) {
+      this.fileInput.nativeElement.value = '';
+    }
     this.fileChange.emit(null);
   }
 
