@@ -18,7 +18,7 @@ public static class DocumentEndpoint
         group.MapPost("/validate", ValidateDocument)
             .WithName("ValidateDocument")
             .WithSummary("Validate a thesis document")
-            .WithDescription("Uploads a DOCX file and validates it against university formatting rules. Returns JSON with validation results.")
+            .WithDescription("Uploads a DOCX file and validates it against selected university formatting rules. Requires a JSON array of rule names in the rules form field.")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<DocumentValidationResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
@@ -26,7 +26,7 @@ public static class DocumentEndpoint
         group.MapPost("/validate-with-comments", ValidateWithComments)
             .WithName("ValidateWithComments")
             .WithSummary("Validate and annotate a thesis document")
-            .WithDescription("Uploads a DOCX file, validates it, and returns an annotated version with comments marking each error.")
+            .WithDescription("Uploads a DOCX file, validates it against selected rules, and returns an annotated version with comments marking each error. Requires a JSON array of rule names in the rules form field.")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces(StatusCodes.Status200OK, contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
@@ -67,11 +67,16 @@ public static class DocumentEndpoint
             });
         }
 
+        var rulesValidationResult = DeserializeRequiredRules(rules, out var selectedRules);
+        if (rulesValidationResult is not null)
+        {
+            return rulesValidationResult;
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var selectedRules = DeserializeRules(rules);
             var (validationResults, headings) = thesisValidatorService.Validate(stream, config, selectedRules);
             var results = validationResults.ToList();
 
@@ -127,11 +132,16 @@ public static class DocumentEndpoint
             });
         }
 
+        var rulesValidationResult = DeserializeRequiredRules(rules, out var selectedRules);
+        if (rulesValidationResult is not null)
+        {
+            return rulesValidationResult;
+        }
+
         try
         {
             using var stream = file.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var selectedRules = DeserializeRules(rules);
             var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, selectedRules);
 
             var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}_annotated.docx";
@@ -164,12 +174,56 @@ public static class DocumentEndpoint
         return Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
     }
 
-    private static List<string>? DeserializeRules(string? rules)
+    private static IResult? DeserializeRequiredRules(string? rules, out List<string> selectedRules)
     {
-        if (string.IsNullOrWhiteSpace(rules))
-            return null;
+        selectedRules = new List<string>();
 
-        return JsonSerializer.Deserialize<List<string>>(rules);
+        if (string.IsNullOrWhiteSpace(rules))
+        {
+            return MissingRulesResult();
+        }
+
+        List<string>? parsedRules;
+        try
+        {
+            parsedRules = JsonSerializer.Deserialize<List<string>>(rules);
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid rules",
+                Detail = "The rules form field must contain a JSON array of rule names",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        if (parsedRules is null)
+        {
+            return MissingRulesResult();
+        }
+
+        foreach (var rule in parsedRules)
+        {
+            if (!string.IsNullOrWhiteSpace(rule))
+            {
+                selectedRules.Add(rule.Trim());
+            }
+        }
+
+        return selectedRules.Count == 0
+            ? MissingRulesResult()
+            : null;
+    }
+
+    private static IResult MissingRulesResult()
+    {
+        return Results.BadRequest(new ProblemDetails
+        {
+            Title = "No rules provided",
+            Detail = "Please include at least one validation rule in the rules form field",
+            Status = StatusCodes.Status400BadRequest
+        });
     }
 }
 
