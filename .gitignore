@@ -70,3 +70,6 @@ frontend/.vscode/tasks.json
 frontend/.vscode/extensions.json
 frontend/.vscode/launch.json
 frontend/.vscode/tasks.json
+presentation/architecture.md
+presentation/architecture.pdf
+presentation/architecture.pptx
