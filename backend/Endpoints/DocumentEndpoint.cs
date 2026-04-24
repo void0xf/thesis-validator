@@ -1,4 +1,3 @@
-using System.Text.Json;
 using backend.Models;
 using backend.Services;
 using Backend.Models;
@@ -21,15 +20,17 @@ public static class DocumentEndpoint
             .WithDescription("Uploads a DOCX file and validates it against selected university formatting rules. Requires a JSON array of rule names in the rules form field.")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<DocumentValidationResponse>(StatusCodes.Status200OK)
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError);
 
         group.MapPost("/validate-with-comments", ValidateWithComments)
             .WithName("ValidateWithComments")
             .WithSummary("Validate and annotate a thesis document")
             .WithDescription("Uploads a DOCX file, validates it against selected rules, and returns an annotated version with comments marking each error. Requires a JSON array of rule names in the rules form field.")
             .Accepts<IFormFile>("multipart/form-data")
-            .Produces(StatusCodes.Status200OK, contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+            .Produces(StatusCodes.Status200OK, contentType: DocumentEndpointResults.DocxContentType)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError);
 
         group.MapGet("/rules", GetAvailableRules)
             .WithName("GetAvailableRules")
@@ -45,64 +46,31 @@ public static class DocumentEndpoint
         IFormFile? file,
         [FromForm] string? rules,
         ThesisValidatorService thesisValidatorService,
-        IOptions<UniversityConfig> universityConfigOptions)
+        IOptions<UniversityConfig> universityConfigOptions,
+        ILoggerFactory loggerFactory)
     {
-        if (file is null || file.Length == 0)
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, thesisValidatorService, out var request, out var error))
         {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "No file provided",
-                Detail = "Please upload a .docx file",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-        {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "Invalid file type",
-                Detail = "Only .docx files are supported",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        var rulesValidationResult = DeserializeRequiredRules(rules, out var selectedRules);
-        if (rulesValidationResult is not null)
-        {
-            return rulesValidationResult;
+            return error!;
         }
 
         try
         {
-            using var stream = file.OpenReadStream();
+            using var stream = request!.File.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var (validationResults, headings) = thesisValidatorService.Validate(stream, config, selectedRules);
+            var (validationResults, headings) = thesisValidatorService.Validate(stream, config, request.SelectedRules);
             var results = validationResults.ToList();
 
-            var response = new DocumentValidationResponse
-            {
-                FileName = file.FileName,
-                FileSize = file.Length,
-                ValidatedAt = DateTime.UtcNow,
-                IsValid = !results.Any(r => r.IsError),
-                TotalErrors = results.Count(r => r.IsError),
-                TotalWarnings = results.Count(r => !r.IsError),
-                Results = results,
-                ConfigUsed = config.Name,
-                Headings = headings
-            };
-
+            var response = DocumentEndpointResults.CreateValidationResponse(request, config, results, headings);
             return Results.Ok(response);
+        }
+        catch (InvalidThesisDocumentException ex)
+        {
+            return DocumentEndpointResults.InvalidDocument(ex, loggerFactory);
         }
         catch (Exception ex)
         {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "Validation failed",
-                Detail = $"Failed to process document: {ex.Message}",
-                Status = StatusCodes.Status400BadRequest
-            });
+            return DocumentEndpointResults.UnexpectedValidationFailure(ex, loggerFactory);
         }
     }
 
@@ -110,62 +78,44 @@ public static class DocumentEndpoint
         IFormFile? file,
         [FromForm] string? rules,
         ThesisValidatorService thesisValidatorService,
-        IOptions<UniversityConfig> universityConfigOptions)
+        IOptions<UniversityConfig> universityConfigOptions,
+        ILoggerFactory loggerFactory)
     {
-        if (file is null || file.Length == 0)
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, thesisValidatorService, out var request, out var error))
         {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "No file provided",
-                Detail = "Please upload a .docx file",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-        {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "Invalid file type",
-                Detail = "Only .docx files are supported",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        var rulesValidationResult = DeserializeRequiredRules(rules, out var selectedRules);
-        if (rulesValidationResult is not null)
-        {
-            return rulesValidationResult;
+            return error!;
         }
 
         try
         {
-            using var stream = file.OpenReadStream();
+            using var stream = request!.File.OpenReadStream();
             var config = universityConfigOptions.Value;
-            var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, selectedRules);
+            var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, request.SelectedRules);
 
-            var outputFileName = $"{Path.GetFileNameWithoutExtension(file.FileName)}_annotated.docx";
+            var outputFileName = DocumentEndpointResults.GetAnnotatedFileName(request.FileName);
 
             return Results.File(
                 annotatedDocument,
-                contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                contentType: DocumentEndpointResults.DocxContentType,
                 fileDownloadName: outputFileName
             );
         }
+        catch (InvalidThesisDocumentException ex)
+        {
+            return DocumentEndpointResults.InvalidDocument(ex, loggerFactory);
+        }
         catch (Exception ex)
         {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "Validation failed",
-                Detail = $"Failed to process document: {ex.Message}",
-                Status = StatusCodes.Status400BadRequest
-            });
+            return DocumentEndpointResults.UnexpectedValidationFailure(ex, loggerFactory);
         }
     }
 
-    private static IResult GetAvailableRules(IEnumerable<ThesisValidator.Rules.IValidationRule> rules)
+    private static IResult GetAvailableRules(ThesisValidatorService thesisValidatorService)
     {
-        var ruleList = rules.Select(r => new { r.Name }).ToList();
+        var ruleList = thesisValidatorService.GetAvailableRuleNames()
+            .Select(name => new { Name = name })
+            .ToList();
+
         return Results.Ok(new { Rules = ruleList, Count = ruleList.Count });
     }
 
@@ -173,69 +123,4 @@ public static class DocumentEndpoint
     {
         return Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
     }
-
-    private static IResult? DeserializeRequiredRules(string? rules, out List<string> selectedRules)
-    {
-        selectedRules = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(rules))
-        {
-            return MissingRulesResult();
-        }
-
-        List<string>? parsedRules;
-        try
-        {
-            parsedRules = JsonSerializer.Deserialize<List<string>>(rules);
-        }
-        catch (JsonException)
-        {
-            return Results.BadRequest(new ProblemDetails
-            {
-                Title = "Invalid rules",
-                Detail = "The rules form field must contain a JSON array of rule names",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        if (parsedRules is null)
-        {
-            return MissingRulesResult();
-        }
-
-        foreach (var rule in parsedRules)
-        {
-            if (!string.IsNullOrWhiteSpace(rule))
-            {
-                selectedRules.Add(rule.Trim());
-            }
-        }
-
-        return selectedRules.Count == 0
-            ? MissingRulesResult()
-            : null;
-    }
-
-    private static IResult MissingRulesResult()
-    {
-        return Results.BadRequest(new ProblemDetails
-        {
-            Title = "No rules provided",
-            Detail = "Please include at least one validation rule in the rules form field",
-            Status = StatusCodes.Status400BadRequest
-        });
-    }
-}
-
-public class DocumentValidationResponse
-{
-    public string FileName { get; set; } = string.Empty;
-    public long FileSize { get; set; }
-    public DateTime ValidatedAt { get; set; }
-    public bool IsValid { get; set; }
-    public int TotalErrors { get; set; }
-    public int TotalWarnings { get; set; }
-    public string ConfigUsed { get; set; } = string.Empty;
-    public List<ValidationResult> Results { get; set; } = new();
-    public List<HeadingInfo> Headings { get; set; } = new();
 }
