@@ -7,13 +7,33 @@ using ThesisValidator.Rules;
 
 namespace backend.Services;
 
-public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
+public class ThesisValidatorService
 {
-    private readonly IReadOnlyList<IValidationRule> _ruleList = rules.ToList();
+    private readonly IReadOnlyList<IValidationRule> _ruleList;
+    private readonly IReadOnlySet<string> _ruleNames;
+
+    public ThesisValidatorService(IEnumerable<IValidationRule> rules)
+    {
+        _ruleList = rules.ToList();
+        _ruleNames = _ruleList.Select(rule => rule.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<string> GetAvailableRuleNames()
+    {
+        return _ruleList.Select(rule => rule.Name).ToList();
+    }
+
+    public IReadOnlyList<string> GetUnknownRuleNames(IEnumerable<string> selectedRules)
+    {
+        return selectedRules
+            .Where(ruleName => !_ruleNames.Contains(ruleName))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     public (IEnumerable<ValidationResult> Results, List<HeadingInfo> Headings) Validate(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
-        var doc = WordprocessingDocument.Open(fileStream, false);
+        using var doc = OpenDocument(fileStream, isEditable: false);
         var rulesToRun = FilterRules(selectedRules);
 
         var errors = new List<ValidationResult>();
@@ -53,13 +73,14 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
     /// Validates the document and adds comments for each error found.
     /// Returns both the validation results and a stream containing the annotated document.
     /// </summary>
-    public (IEnumerable<ValidationResult> Results, MemoryStream AnnotatedDocument) ValidateWithComments(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
+    public (IEnumerable<ValidationResult> Results, MemoryStream AnnotatedDocument)
+    ValidateWithComments(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
-        var memoryStream = new MemoryStream();
+        using var memoryStream = new MemoryStream();
         fileStream.CopyTo(memoryStream);
         memoryStream.Position = 0;
 
-        using var doc = WordprocessingDocument.Open(memoryStream, true);
+        using var doc = OpenDocument(memoryStream, isEditable: true);
         var commentService = new DocumentCommentService();
         var rulesToRun = FilterRules(selectedRules);
 
@@ -69,10 +90,52 @@ public class ThesisValidatorService(IEnumerable<IValidationRule> rules)
             errors.AddRange(rule.Validate(doc, config, commentService));
         }
 
-        doc.MainDocumentPart?.Document.Save();
-        var annotatedStream = DocumentCommentService.SaveDocumentWithComments(doc);
+        try
+        {
+            doc.MainDocumentPart?.Document.Save();
+            var annotatedStream = DocumentCommentService.SaveDocumentWithComments(doc);
 
-        return (errors, annotatedStream);
+            return (errors, annotatedStream);
+        }
+        catch (Exception ex) when (IsDocumentProcessingException(ex))
+        {
+            throw new InvalidThesisDocumentException("The uploaded file could not be saved as an annotated DOCX document.", ex);
+        }
+    }
+
+    private static WordprocessingDocument OpenDocument(Stream stream, bool isEditable)
+    {
+        try
+        {
+            var doc = WordprocessingDocument.Open(stream, isEditable);
+            if (doc.MainDocumentPart?.Document is not null)
+            {
+                return doc;
+            }
+
+            doc.Dispose();
+            throw new InvalidThesisDocumentException("The uploaded file is not a valid Wordprocessing document.");
+        }
+        catch (InvalidThesisDocumentException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (IsDocumentProcessingException(ex))
+        {
+            throw new InvalidThesisDocumentException("The uploaded file could not be opened as a DOCX document.", ex);
+        }
+    }
+
+    private static bool IsDocumentProcessingException(Exception exception)
+    {
+        return exception is OpenXmlPackageException
+            or FileFormatException
+            or InvalidDataException
+            or IOException
+            or NotSupportedException
+            or InvalidOperationException
+            or ArgumentException
+            or ObjectDisposedException;
     }
 
     /// <summary>
