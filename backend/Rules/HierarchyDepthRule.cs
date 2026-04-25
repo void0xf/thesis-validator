@@ -20,21 +20,13 @@ public class HierarchyDepthRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService = null)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body is null)
-            return errors;
-
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
-
             var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
             if (level is null || level <= MaxAllowedLevel)
                 continue;
 
-            var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
             var preview = text.Length > 60 ? text[..60] + "..." : text;
 
             var errorMessage = $"Structure too deep. Detected Level {level}, but maximum allowed is {MaxAllowedLevel}.";

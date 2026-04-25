@@ -19,13 +19,10 @@ public class FontFamilyValidationRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? commentService)
     {
         var expectedFont = config.Formatting.Font.FontFamily;
-        var body = doc.MainDocumentPart!.Document.Body!;
         var errors = new List<ValidationResult>();
 
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Elements<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            paragraphIndex++;
             ValidateParagraph(doc, paragraph, paragraphIndex, expectedFont, errors, commentService);
         }
 

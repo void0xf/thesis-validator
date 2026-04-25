@@ -36,24 +36,18 @@ public class HeadingStyleUsageRule : IValidationRule
         DocumentCommentService? commentService = null)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-        if (body is null) return errors;
-
         var bodyFontSizePt = config.Formatting.Font.FontSize;
         var thresholdPt = bodyFontSizePt + FontSizeThresholdAboveBodyPt;
 
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Elements<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            paragraphIndex++;
-
             if (HeadingStyleHelper.IsHeading(doc, paragraph))
                 continue;
 
             if (IsExcludedStyle(paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value))
                 continue;
 
-            var text = GetParagraphText(paragraph).Trim();
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config).Trim();
 
             if (string.IsNullOrWhiteSpace(text) || text.Length > MaxHeadingTextLength)
                 continue;
@@ -195,11 +189,6 @@ public class HeadingStyleUsageRule : IValidationRule
         if (string.IsNullOrEmpty(styleId)) return false;
         var lower = styleId.ToLowerInvariant();
         return ExcludedStylePatterns.Any(lower.Contains);
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string GetRunText(Run run)

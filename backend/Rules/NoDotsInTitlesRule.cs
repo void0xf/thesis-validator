@@ -27,21 +27,13 @@ public class NoDotsInTitlesRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
-
             // Only check paragraphs with target styles
             if (!HasTargetStyle(paragraph))
                 continue;
 
-            var text = GetParagraphText(paragraph);
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
 
             // Skip empty paragraphs
             if (string.IsNullOrWhiteSpace(text))
@@ -101,11 +93,6 @@ public class NoDotsInTitlesRule : IValidationRule
 
         // It's a single trailing period - this is an error
         return true;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string Truncate(string text, int maxLength)

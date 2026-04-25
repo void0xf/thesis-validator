@@ -23,17 +23,9 @@ public partial class SingleSpaceRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
-
-            var text = GetParagraphText(paragraph);
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
 
             if (string.IsNullOrWhiteSpace(text))
                 continue;
@@ -66,11 +58,6 @@ public partial class SingleSpaceRule : IValidationRule
         }
 
         return errors;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string GetContextSnippet(string text, int matchIndex, int matchLength, int contextChars = 15)

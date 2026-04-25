@@ -42,11 +42,6 @@ public class GrammarRule : IValidationRule
         DocumentCommentService? commentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
         if (!await _languageToolService.IsAvailableAsync())
         {
             errors.Add(new ValidationResult
@@ -60,13 +55,10 @@ public class GrammarRule : IValidationRule
         }
 
         var language = config.Language;
-        int paragraphIndex = 0;
 
-        foreach (var paragraph in body.Elements<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            paragraphIndex++;
-
-            var paragraphText = GetParagraphText(paragraph);
+            var paragraphText = DocumentAnalysisScope.GetParagraphText(paragraph, config);
             if (string.IsNullOrWhiteSpace(paragraphText))
                 continue;
 
@@ -185,11 +177,6 @@ public class GrammarRule : IValidationRule
             return GrammarIssueType.Typography;
 
         return GrammarIssueType.Other;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string Truncate(string text, int maxLength)

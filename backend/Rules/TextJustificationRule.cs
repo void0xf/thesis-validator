@@ -15,35 +15,13 @@ public class TextJustificationRule : IValidationRule
 {
     public string Name => "TextJustificationRule";
 
-    // Style patterns to skip (case-insensitive matching)
-    private static readonly string[] ExcludedStylePatterns =
-    [
-        "heading", "nagwek",           // Headings (EN/PL)
-        "title", "tytu",               // Title (EN/PL)
-        "subtitle", "podtytu",         // Subtitle (EN/PL)
-        "caption", "podpis",           // Caption (EN/PL)
-        "toc", "spis",                 // Table of Contents (EN/PL)
-        "quote", "cytat",              // Quotes (EN/PL)
-        "header", "footer",            // Header/Footer
-        "list", "lista"                // List styles
-    ];
-
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
-
-            // Skip empty paragraphs
-            var text = GetParagraphText(paragraph);
-            if (string.IsNullOrWhiteSpace(text))
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
+            if (!DocumentAnalysisScope.HasMeaningfulContent(text))
                 continue;
 
             // Skip if this is a list item (has numbering properties)
@@ -51,7 +29,7 @@ public class TextJustificationRule : IValidationRule
                 continue;
 
             // Skip if this is an excluded style (heading, title, TOC, etc.)
-            if (HasExcludedStyle(paragraph))
+            if (StylePatternExclusionHelper.HasExcludedStyle(paragraph))
                 continue;
 
             // Check justification
@@ -88,16 +66,6 @@ public class TextJustificationRule : IValidationRule
     {
         // Check if paragraph has numbering properties (bullet or numbered list)
         return paragraph.ParagraphProperties?.NumberingProperties != null;
-    }
-
-    private static bool HasExcludedStyle(Paragraph paragraph)
-    {
-        var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
-        if (string.IsNullOrEmpty(styleId))
-            return false;
-
-        var styleLower = styleId.ToLowerInvariant();
-        return ExcludedStylePatterns.Any(pattern => styleLower.Contains(pattern));
     }
 
     private static JustificationValues ResolveEffectiveJustification(WordprocessingDocument doc, Paragraph paragraph)
@@ -155,11 +123,6 @@ public class TextJustificationRule : IValidationRule
             .FirstOrDefault(s => s.Type?.Value == StyleValues.Paragraph && s.Default?.Value == true);
 
         return defaultStyle?.StyleParagraphProperties?.Justification?.Val?.Value;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string GetAlignmentName(JustificationValues? justification)
