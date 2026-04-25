@@ -3,6 +3,7 @@ using backend.Rules;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Rules;
 using ThesisValidator.Rules;
 
 namespace backend.Services;
@@ -42,26 +43,44 @@ public class ThesisValidatorService
             errors.AddRange(rule.Validate(doc, config));
         }
 
-        var headings = ExtractHeadings(doc);
-        var (elementsMap, descendantsMap) = BuildSectionMaps(doc);
+        var headings = ExtractHeadings(doc, config);
+        var (elementsMap, descendantsMap) = BuildSectionMaps(doc, config);
         PopulateSectionContext(errors, elementsMap, descendantsMap);
 
         return (errors, headings);
     }
 
-    public static List<HeadingInfo> ExtractHeadings(WordprocessingDocument doc)
+    public static List<HeadingInfo> ExtractHeadings(WordprocessingDocument doc, UniversityConfig? config = null)
     {
         var headings = new List<HeadingInfo>();
+        var effectiveConfig = config ?? new UniversityConfig();
         var body = doc.MainDocumentPart?.Document.Body;
-        if (body is null) return headings;
+        if (body is null)
+            return headings;
 
+        var tocParagraphIndex = effectiveConfig.Formatting.SkipBeforeTableOfContents
+            ? TocRule.DetectTableOfContents(doc).ParagraphIndex
+            : 0;
+
+        int paragraphIndex = 0;
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
+            paragraphIndex++;
+            var text = DocumentAnalysisScope.GetParagraphText(paragraph, effectiveConfig).Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            if (TocRule.IsTableOfContentsHeadingText(text))
+            {
+                headings.Add(new HeadingInfo { Level = 1, Text = text });
+                continue;
+            }
+
+            if (tocParagraphIndex > 0 && paragraphIndex <= tocParagraphIndex)
+                continue;
+
             var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
             if (level is null) continue;
-
-            var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text)).Trim();
-            if (string.IsNullOrWhiteSpace(text)) continue;
 
             headings.Add(new HeadingInfo { Level = level.Value, Text = text });
         }
@@ -147,36 +166,30 @@ public class ThesisValidatorService
     private static (
         List<(int Index, string Text)> ElementsMap,
         List<(int Index, string Text)> DescendantsMap
-    ) BuildSectionMaps(WordprocessingDocument doc)
+    ) BuildSectionMaps(WordprocessingDocument doc, UniversityConfig config)
     {
         var elementsMap = new List<(int, string)>();
         var descendantsMap = new List<(int, string)>();
-        var body = doc.MainDocumentPart?.Document.Body;
-        if (body is null) return (elementsMap, descendantsMap);
 
         // Elements-based map (direct body children only — matches FontFamily, List, Grammar, FigureCaption, EmptySection rules)
-        int elemIdx = 0;
-        foreach (var para in body.Elements<Paragraph>())
+        foreach (var (para, elemIdx) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            elemIdx++;
             var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
             if (level is null) continue;
 
-            var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
+            var text = DocumentAnalysisScope.GetParagraphText(para, config).Trim();
             if (string.IsNullOrWhiteSpace(text)) continue;
 
             elementsMap.Add((elemIdx, text));
         }
 
         // Descendants-based map (all paragraphs incl. table cells — matches SingleSpace, Justification, NoDots, Indent, Spacing, LineSpacing, Hierarchy rules)
-        int descIdx = 0;
-        foreach (var para in body.Descendants<Paragraph>())
+        foreach (var (para, descIdx) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            descIdx++;
             var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
             if (level is null) continue;
 
-            var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
+            var text = DocumentAnalysisScope.GetParagraphText(para, config).Trim();
             if (string.IsNullOrWhiteSpace(text)) continue;
 
             descendantsMap.Add((descIdx, text));
