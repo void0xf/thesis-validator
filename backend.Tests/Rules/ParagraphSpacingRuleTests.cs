@@ -49,6 +49,23 @@ public class ParagraphSpacingRuleTests
         return new InMemoryDocx(doc, stream);
     }
 
+    private static InMemoryDocx CreateDocxWithStyledSpacing(string styleId, int spacingAfterTwips)
+    {
+        var stream = new MemoryStream();
+        var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
+
+        var mainPart = doc.AddMainDocumentPart();
+        mainPart.Document = new Document(new Body(
+            new Paragraph(
+                new ParagraphProperties(
+                    new ParagraphStyleId { Val = styleId },
+                    new SpacingBetweenLines { After = spacingAfterTwips.ToString() }),
+                new Run(new Text("Styled paragraph")))));
+
+        mainPart.Document.Save();
+        return new InMemoryDocx(doc, stream);
+    }
+
     [Fact]
     public void Validate_ParagraphWithCorrectSpacing0pt_ReturnsNoErrors()
     {
@@ -106,6 +123,17 @@ public class ParagraphSpacingRuleTests
         mainPart.Document.Save();
         using var docx = new InMemoryDocx(wordDoc, stream);
 
+        var config = CreateConfig(0, 6);
+
+        var errors = _rule.Validate(docx.Document, config, null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Validate_ExcludedStylePattern_ReturnsNoErrors()
+    {
+        using var docx = CreateDocxWithStyledSpacing("Caption", 200);
         var config = CreateConfig(0, 6);
 
         var errors = _rule.Validate(docx.Document, config, null).ToList();

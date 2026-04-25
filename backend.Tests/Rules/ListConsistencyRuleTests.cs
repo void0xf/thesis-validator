@@ -13,7 +13,12 @@ public class ListConsistencyRuleTests
 
     private static UniversityConfig CreateConfig() => new();
 
-    private static Paragraph CreateListItem(string text, int numberingId, int level = 0, int? indentTwips = null)
+    private static Paragraph CreateListItem(
+        string text,
+        int numberingId,
+        int level = 0,
+        int? indentTwips = null,
+        string? styleId = null)
     {
         var numberingProps = new NumberingProperties(
             new NumberingLevelReference { Val = level },
@@ -21,6 +26,10 @@ public class ListConsistencyRuleTests
         );
 
         var paraProps = new ParagraphProperties(numberingProps);
+        if (!string.IsNullOrEmpty(styleId))
+        {
+            paraProps.ParagraphStyleId = new ParagraphStyleId { Val = styleId };
+        }
 
         if (indentTwips.HasValue)
         {
@@ -31,6 +40,17 @@ public class ListConsistencyRuleTests
             paraProps,
             new Run(new Text(text))
         );
+    }
+
+    private static Paragraph CreateNumberedHeading(string text, int numberingId, int level = 0)
+    {
+        return new Paragraph(
+            new ParagraphProperties(
+                new ParagraphStyleId { Val = "Heading1" },
+                new NumberingProperties(
+                    new NumberingLevelReference { Val = level },
+                    new NumberingId { Val = numberingId })),
+            new Run(new Text(text)));
     }
 
     private static InMemoryDocx CreateDocxWithParagraphs(params Paragraph[] paragraphs)
@@ -222,6 +242,48 @@ public class ListConsistencyRuleTests
             new Paragraph(new Run(new Text("Normal paragraph between lists"))),
             CreateListItem("List2 item1,", 2),
             CreateListItem("List2 item2.", 2)
+        );
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void NumberedHeadings_AreNotCheckedAsListItems()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateNumberedHeading("Chapter one", 1),
+            CreateNumberedHeading("Chapter two", 1)
+        );
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void ExcludedStylePattern_AreNotCheckedAsListItems()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("Caption one;", 1, styleId: "Caption"),
+            CreateListItem("Caption two;", 1, styleId: "Caption")
+        );
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void NumberedHeading_BreaksAdjacentLists()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("First list item;", 1),
+            CreateListItem("First list end.", 1),
+            CreateNumberedHeading("Chapter heading", 1),
+            CreateListItem("Second list item;", 1),
+            CreateListItem("Second list end.", 1)
         );
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();

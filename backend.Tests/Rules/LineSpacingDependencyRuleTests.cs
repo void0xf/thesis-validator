@@ -13,7 +13,12 @@ public class LineSpacingDependencyRuleTests
 
     private static UniversityConfig CreateConfig() => new();
 
-    private static InMemoryDocx CreateDocxWithLineSpacing(int lineValue, LineSpacingRuleValues? lineRule, int? beforeTwips, int? afterTwips)
+    private static InMemoryDocx CreateDocxWithLineSpacing(
+        int lineValue,
+        LineSpacingRuleValues? lineRule,
+        int? beforeTwips,
+        int? afterTwips,
+        string? styleId = null)
     {
         var stream = new MemoryStream();
         var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
@@ -32,10 +37,16 @@ public class LineSpacingDependencyRuleTests
         if (afterTwips.HasValue)
             spacing.After = afterTwips.Value.ToString();
 
+        var paragraphProperties = new ParagraphProperties(spacing);
+        if (!string.IsNullOrEmpty(styleId))
+        {
+            paragraphProperties.ParagraphStyleId = new ParagraphStyleId { Val = styleId };
+        }
+
         var paragraph = new Paragraph(
-            new ParagraphProperties(spacing),
-            new Run(new Text("Test paragraph"))
-        );
+            paragraphProperties,
+            new Run(new Text("Test paragraph")));
+
         mainPart.Document.Body!.Append(paragraph);
         mainPart.Document.Save();
 
@@ -117,14 +128,23 @@ public class LineSpacingDependencyRuleTests
     }
 
     [Fact]
-    public void HelloDocx_DetectsLineSpacingViolation()
+    public void ExcludedStylePattern_ReturnsNoErrors()
+    {
+        using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Auto, null, 120, "Caption");
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void HelloDocx_ListStyleParagraphsAreExcluded()
     {
         using var doc = WordprocessingDocument.Open(
             @"C:\Users\envv\Documents\GitHub\thesis-validator\backend.Tests\Fixtures\hello.docx", false);
 
         var errors = _rule.Validate(doc, CreateConfig(), null).ToList();
 
-        Assert.NotEmpty(errors);
-        Assert.Contains(errors, e => e.Message.Contains("1.5 line spacing"));
+        Assert.Empty(errors);
     }
 }
