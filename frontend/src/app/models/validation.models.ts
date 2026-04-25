@@ -14,6 +14,7 @@ export interface ValidationResult {
   ruleName: string;
   message: string;
   isError: boolean;
+  category?: string;
   location: DocumentLocation | null;
 }
 
@@ -32,6 +33,11 @@ export interface ValidationResponse {
   configUsed: string;
   results: ValidationResult[];
   headings: HeadingInfo[];
+}
+
+export interface ValidationOptions {
+  skipBeforeTableOfContents: boolean;
+  skipTextBoxes: boolean;
 }
 
 export interface RuleInfo {
@@ -126,6 +132,11 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
   'CheckTableOfContents': {
     displayName: 'Table of Contents',
     description: 'Ensures the document contains a Table of Contents',
+    category: 'structure'
+  },
+  'Manual table of contents': {
+    displayName: 'Manual table of contents',
+    description: 'Warns when a table of contents appears to be manually written',
     category: 'structure'
   },
   'EmptySectionStructureRule': {
