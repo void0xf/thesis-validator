@@ -89,7 +89,10 @@ export class ValidationResultsComponent {
     const groups: Map<RuleCategory, CategoryGroup> = new Map();
 
     for (const result of this.response.results) {
-      const category = RULE_METADATA[result.ruleName]?.category || 'formatting';
+      const category =
+        this.normalizeCategory(result.category) ||
+        RULE_METADATA[result.ruleName]?.category ||
+        'formatting';
 
       if (!groups.has(category)) {
         groups.set(category, {
@@ -117,4 +120,13 @@ export class ValidationResultsComponent {
         (CATEGORY_INFO[b.category]?.order || 99),
     );
   });
+
+  private normalizeCategory(category: string | undefined): RuleCategory | null {
+    if (!category) {
+      return null;
+    }
+
+    const normalized = category.toLowerCase() as RuleCategory;
+    return normalized in CATEGORY_INFO ? normalized : null;
+  }
 }
