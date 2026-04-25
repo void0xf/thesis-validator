@@ -15,6 +15,9 @@ public class FormattingConfig
     public FontConfig Font { get; set; } = new FontConfig();
     public LayoutConfig Layout { get; set; } = new LayoutConfig();
     public bool CheckTableOfContents { get; set; } = true;
+    public bool SkipBeforeTableOfContents { get; set; }
+    public bool SkipTextBoxes { get; set; } = true;
+    public bool SkipTableOfContentsContent { get; set; } = true;
 }
 
 public class FontConfig
