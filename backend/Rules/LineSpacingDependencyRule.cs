@@ -24,15 +24,13 @@ public class LineSpacingDependencyRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
+            if (HeadingStyleHelper.IsHeading(doc, paragraph))
+                continue;
+
+            if (StylePatternExclusionHelper.HasExcludedStyle(paragraph))
+                continue;
 
             // Resolve effective line spacing (from paragraph, style, or default)
             var (lineSpacing, lineRule) = ResolveEffectiveLineSpacing(doc, paragraph);
@@ -48,8 +46,9 @@ public class LineSpacingDependencyRule : IValidationRule
             {
                 var beforePt = spacingBefore / (double)TwipsPerPoint;
                 var afterPt = spacingAfter / (double)TwipsPerPoint;
-                var preview = GetParagraphPreview(paragraph, 50);
-
+                var preview = GetParagraphPreview(paragraph, config, 50);
+                if(string.IsNullOrEmpty(preview) || string.IsNullOrWhiteSpace(preview))
+                    continue;
                 var errorMessage = $"Paragraph with 1.5 line spacing must have 0pt spacing before and after. " +
                                    $"Found: Before={beforePt:F1}pt, After={afterPt:F1}pt.";
 
@@ -227,9 +226,9 @@ public class LineSpacingDependencyRule : IValidationRule
         return null;
     }
 
-    private static string GetParagraphPreview(Paragraph paragraph, int maxLength)
+    private static string GetParagraphPreview(Paragraph paragraph, UniversityConfig config, int maxLength)
     {
-        var raw = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+        var raw = DocumentAnalysisScope.GetParagraphText(paragraph, config);
         var clean = SanitizePreview(raw);
         if (string.IsNullOrEmpty(clean)) return string.Empty;
         return clean.Length <= maxLength ? clean : clean[..maxLength] + "...";

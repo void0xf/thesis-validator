@@ -17,19 +17,17 @@ public class ParagraphSpacingRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
         var allowedSpacingTwips = config.Formatting.Layout.ParagraphSpacingRule
             .Select(pt => pt * TwipsPerPoint)
             .ToHashSet();
 
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
+            if (HeadingStyleHelper.IsHeading(doc, paragraph))
+                continue;
+
+            if (StylePatternExclusionHelper.HasExcludedStyle(paragraph))
+                continue;
 
             var spacing = paragraph.ParagraphProperties?.SpacingBetweenLines;
             var afterValue = spacing?.After?.Value;
@@ -43,12 +41,14 @@ public class ParagraphSpacingRule : IValidationRule
                     spacingAfter = -1;
                 }
             }
+            var preview = GetParagraphPreview(paragraph, config, 50);
 
-            if (!allowedSpacingTwips.Contains(spacingAfter))
+            if (!allowedSpacingTwips.Contains(spacingAfter) 
+                && !string.IsNullOrEmpty(preview) 
+                && !string.IsNullOrWhiteSpace(preview))
             {
                 var expectedPts = string.Join(" or ", config.Formatting.Layout.ParagraphSpacingRule.Select(pt => $"{pt}pt"));
                 var actualPt = spacingAfter / (double)TwipsPerPoint;
-                var preview = GetParagraphPreview(paragraph, 50);
                 var errorMessage = $"Paragraph has incorrect spacing. After value: {actualPt:F1}pt ({spacingAfter} twips). Expected {expectedPts}.";
                 errors.Add(new ValidationResult
                 {
@@ -68,9 +68,9 @@ public class ParagraphSpacingRule : IValidationRule
         return errors;
     }
 
-    private static string GetParagraphPreview(Paragraph paragraph, int maxLength)
+    private static string GetParagraphPreview(Paragraph paragraph, UniversityConfig config, int maxLength)
     {
-        var raw = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+        var raw = DocumentAnalysisScope.GetParagraphText(paragraph, config);
         var clean = SanitizePreview(raw);
         if (string.IsNullOrEmpty(clean)) return string.Empty;
         return clean.Length <= maxLength ? clean : clean[..maxLength] + "...";

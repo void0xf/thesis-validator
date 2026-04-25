@@ -19,33 +19,33 @@ public class ListConsistencyRule : IValidationRule
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
-        var lists = ExtractLists(body);
+        var lists = ExtractLists(doc, config);
 
         foreach (var list in lists)
         {
-            errors.AddRange(ValidatePunctuationConsistency(doc, list, documentCommentService));
+            errors.AddRange(ValidatePunctuationConsistency(doc, list, config, documentCommentService));
 
-            errors.AddRange(ValidateIndentationConsistency(doc, list, documentCommentService));
+            errors.AddRange(ValidateIndentationConsistency(doc, list, config, documentCommentService));
         }
 
         return errors;
     }
 
-    private static List<ListGroup> ExtractLists(Body body)
+    private static List<ListGroup> ExtractLists(WordprocessingDocument doc, UniversityConfig config)
     {
         var lists = new List<ListGroup>();
         ListGroup? currentList = null;
         int? currentNumberingId = null;
 
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Elements<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            paragraphIndex++;
+            if (HeadingStyleHelper.IsHeading(doc, paragraph)
+                || StylePatternExclusionHelper.HasExcludedStyle(paragraph))
+            {
+                currentList = null;
+                currentNumberingId = null;
+                continue;
+            }
 
             var numberingProps = paragraph.ParagraphProperties?.NumberingProperties;
             var numberingId = numberingProps?.NumberingId?.Val?.Value;
@@ -83,6 +83,7 @@ public class ListConsistencyRule : IValidationRule
     private IEnumerable<ValidationResult> ValidatePunctuationConsistency(
         WordprocessingDocument doc,
         ListGroup list,
+        UniversityConfig config,
         DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
@@ -102,13 +103,15 @@ public class ListConsistencyRule : IValidationRule
             var lastItem = items.Last();
             var middleItems = items.Count > 2 ? items.Skip(1).Take(items.Count - 2).ToList() : [];
 
-            var expectedPunctuation = GetTrailingPunctuation(firstItem.Paragraph);
+            var expectedPunctuation = GetTrailingPunctuation(firstItem.Paragraph, config);
 
             foreach (var item in middleItems)
             {
-                var ending = GetTrailingPunctuation(item.Paragraph);
-                var text = GetParagraphText(item.Paragraph);
+                var ending = GetTrailingPunctuation(item.Paragraph, config);
+                var text = DocumentAnalysisScope.GetParagraphText(item.Paragraph, config);
                 var preview = Truncate(text, 40);
+                if(string.IsNullOrEmpty(preview) || string.IsNullOrWhiteSpace(preview))
+                    continue;
 
                 if (ending != expectedPunctuation)
                 {
@@ -137,10 +140,12 @@ public class ListConsistencyRule : IValidationRule
                 }
             }
 
-            var lastEnding = GetTrailingPunctuation(lastItem.Paragraph);
+            var lastEnding = GetTrailingPunctuation(lastItem.Paragraph, config);
             if (lastEnding != '.')
             {
-                var lastText = GetParagraphText(lastItem.Paragraph);
+                var lastText = DocumentAnalysisScope.GetParagraphText(lastItem.Paragraph, config);
+                if(string.IsNullOrEmpty(lastText) || string.IsNullOrWhiteSpace(lastText))
+                    continue;
                 var lastPreview = Truncate(lastText, 40);
 
                 var errorMessage = lastEnding.HasValue
@@ -169,6 +174,7 @@ public class ListConsistencyRule : IValidationRule
     private IEnumerable<ValidationResult> ValidateIndentationConsistency(
         WordprocessingDocument doc,
         ListGroup list,
+        UniversityConfig config,
         DocumentCommentService? documentCommentService)
     {
         var errors = new List<ValidationResult>();
@@ -193,7 +199,7 @@ public class ListConsistencyRule : IValidationRule
 
             foreach (var item in items.Where(i => i.IndentLeft != expectedIndent))
             {
-                var text = GetParagraphText(item.Paragraph);
+                var text = DocumentAnalysisScope.GetParagraphText(item.Paragraph, config);
                 var preview = Truncate(text, 40);
 
                 var expectedCm = TwipsToCm(expectedIndent);
@@ -234,19 +240,14 @@ public class ListConsistencyRule : IValidationRule
         return 0;
     }
 
-    private static char? GetTrailingPunctuation(Paragraph paragraph)
+    private static char? GetTrailingPunctuation(Paragraph paragraph, UniversityConfig config)
     {
-        var text = GetParagraphText(paragraph).TrimEnd();
+        var text = DocumentAnalysisScope.GetParagraphText(paragraph, config).TrimEnd();
         if (string.IsNullOrEmpty(text))
             return null;
 
         var lastChar = text[^1];
         return char.IsPunctuation(lastChar) ? lastChar : null;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static double TwipsToCm(int twips)

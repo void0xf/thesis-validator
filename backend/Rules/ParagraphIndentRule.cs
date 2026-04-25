@@ -22,22 +22,20 @@ public class ParagraphIndentRule : IValidationRule
         DocumentCommentService? documentCommentService = null)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-
-        if (body == null)
-            return errors;
-
         // Allowed indents: 1 cm (~567 twips) or 1.25 cm (~709 twips)
         // Word may store as 567, 568, 708, 709, 720 depending on rounding
         // Using explicit twip values that Word commonly uses
         var allowedIndentsTwips = new[] { 567, 709 }; // 1 cm and 1.25 cm
 
-        int paragraphIndex = 0;
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            paragraphIndex++;
+            if (HeadingStyleHelper.IsHeading(doc, paragraph))
+                continue;
 
-            if (!HasTextContent(paragraph))
+            if (StylePatternExclusionHelper.HasExcludedStyle(paragraph))
+                continue;
+
+            if (!HasTextContent(paragraph, config))
                 continue;
 
             if (IsHeadingOrSpecialParagraph(doc, paragraph))
@@ -64,7 +62,7 @@ public class ParagraphIndentRule : IValidationRule
                     Location = new DocumentLocation
                     {
                         Paragraph = paragraphIndex,
-                        Text = GetParagraphPreview(paragraph, 50)
+                        Text = GetParagraphPreview(paragraph, config, 50)
                     }
                 });
 
@@ -85,7 +83,7 @@ public class ParagraphIndentRule : IValidationRule
                     Location = new DocumentLocation
                     {
                         Paragraph = paragraphIndex,
-                        Text = GetParagraphPreview(paragraph, 50)
+                        Text = GetParagraphPreview(paragraph, config, 50)
                     }
                 });
 
@@ -278,10 +276,9 @@ public class ParagraphIndentRule : IValidationRule
         return false;
     }
 
-    private static bool HasTextContent(Paragraph paragraph)
+    private static bool HasTextContent(Paragraph paragraph, UniversityConfig config)
     {
-        var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
-        return !string.IsNullOrWhiteSpace(text);
+        return DocumentAnalysisScope.HasMeaningfulParagraphContent(paragraph, config);
     }
 
     private static bool IsCenteredOrRightAligned(WordprocessingDocument doc, Paragraph paragraph)
@@ -347,9 +344,9 @@ public class ParagraphIndentRule : IValidationRule
         return false;
     }
 
-    private static string GetParagraphPreview(Paragraph paragraph, int maxLength)
+    private static string GetParagraphPreview(Paragraph paragraph, UniversityConfig config, int maxLength)
     {
-        var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+        var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
         if (text.Length <= maxLength)
             return text;
         return text.Substring(0, maxLength) + "...";
