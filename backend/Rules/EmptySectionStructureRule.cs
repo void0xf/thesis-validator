@@ -34,9 +34,17 @@ public class EmptySectionStructureRule : IValidationRule
         bool hasBodyContentSinceHeading = false;
 
         int paragraphIndex = 0;
+        int childIndex = 0;
+        var firstIncludedChildIndex = DocumentAnalysisScope.GetFirstIncludedBodyChildIndex(doc, config);
 
         foreach (var element in body.ChildElements)
         {
+            if (element is Paragraph)
+                paragraphIndex++;
+
+            if (childIndex++ < firstIncludedChildIndex)
+                continue;
+
             // Tables, SdtBlocks, etc. count as body content.
             if (element is not Paragraph paragraph)
             {
@@ -44,8 +52,6 @@ public class EmptySectionStructureRule : IValidationRule
                     hasBodyContentSinceHeading = true;
                 continue;
             }
-
-            paragraphIndex++;
 
             var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
 
@@ -56,7 +62,7 @@ public class EmptySectionStructureRule : IValidationRule
                     && level > lastHeadingLevel
                     && !hasBodyContentSinceHeading)
                 {
-                    var currentText = Truncate(GetParagraphText(paragraph).Trim(), 50);
+                    var currentText = Truncate(DocumentAnalysisScope.GetParagraphText(paragraph, config).Trim(), 50);
 
                     var msg =
                         $"Heading {lastHeadingLevel} \"{lastHeadingPreview}\" " +
@@ -82,7 +88,7 @@ public class EmptySectionStructureRule : IValidationRule
 
                 lastHeadingLevel = level;
                 lastHeadingParaIdx = paragraphIndex;
-                lastHeadingPreview = Truncate(GetParagraphText(paragraph).Trim(), 60);
+                lastHeadingPreview = Truncate(DocumentAnalysisScope.GetParagraphText(paragraph, config).Trim(), 60);
                 lastHeadingParagraph = paragraph;
                 hasBodyContentSinceHeading = false;
             }
@@ -90,7 +96,7 @@ public class EmptySectionStructureRule : IValidationRule
             {
                 // Non-heading paragraph — any visible text counts as body content.
                 if (!hasBodyContentSinceHeading
-                    && !string.IsNullOrWhiteSpace(GetParagraphText(paragraph)))
+                    && !string.IsNullOrWhiteSpace(DocumentAnalysisScope.GetParagraphText(paragraph, config)))
                 {
                     hasBodyContentSinceHeading = true;
                 }
@@ -98,11 +104,6 @@ public class EmptySectionStructureRule : IValidationRule
         }
 
         return errors;
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string Truncate(string text, int maxLength)

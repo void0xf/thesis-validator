@@ -29,35 +29,30 @@ public class FigureCaptionStyleRule : IValidationRule
         DocumentCommentService? commentService = null)
     {
         var errors = new List<ValidationResult>();
-        var body = doc.MainDocumentPart?.Document.Body;
-        if (body is null) return errors;
-
-        var paragraphs = body.Elements<Paragraph>().ToList();
+        var paragraphs = DocumentAnalysisScope.BodyParagraphs(doc, config).ToList();
 
         for (int i = 0; i < paragraphs.Count; i++)
         {
-            if (!ContainsImage(paragraphs[i]))
+            var (figureParagraph, figureIdx) = paragraphs[i];
+            if (!ContainsImage(figureParagraph, config))
                 continue;
-
-            var figureIdx = i + 1; // 1-based for reporting
 
             // ── Rule 1: caption paragraph must exist ──
             if (i + 1 >= paragraphs.Count)
             {
-                AddMissingCaption(doc, errors, paragraphs[i], figureIdx, commentService);
+                AddMissingCaption(doc, errors, figureParagraph, figureIdx, commentService);
                 continue;
             }
 
-            var caption = paragraphs[i + 1];
-            var captionText = GetParagraphText(caption).Trim();
+            var (caption, captionIdx) = paragraphs[i + 1];
+            var captionText = DocumentAnalysisScope.GetParagraphText(caption, config).Trim();
 
             if (string.IsNullOrWhiteSpace(captionText))
             {
-                AddMissingCaption(doc, errors, paragraphs[i], figureIdx, commentService);
+                AddMissingCaption(doc, errors, figureParagraph, figureIdx, commentService);
                 continue;
             }
 
-            var captionIdx = figureIdx + 1;
             var preview = Truncate(captionText, 50);
             var styleId = caption.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
 
@@ -87,14 +82,16 @@ public class FigureCaptionStyleRule : IValidationRule
     //  Image detection
     // ------------------------------------------------------------------ //
 
-    private static bool ContainsImage(Paragraph paragraph)
+    private static bool ContainsImage(Paragraph paragraph, UniversityConfig config)
     {
         // DrawingML images (<w:drawing>)
-        if (paragraph.Descendants<Drawing>().Any())
+        if (paragraph.Descendants<Drawing>().Any(drawing =>
+                !config.Formatting.SkipTextBoxes || !DocumentAnalysisScope.ContainsTextBoxContent(drawing)))
             return true;
 
         // Legacy VML images (<w:pict>)
-        if (paragraph.Descendants<Picture>().Any())
+        if (paragraph.Descendants<Picture>().Any(picture =>
+                !config.Formatting.SkipTextBoxes || !DocumentAnalysisScope.ContainsTextBoxContent(picture)))
             return true;
 
         return false;
@@ -346,11 +343,6 @@ public class FigureCaptionStyleRule : IValidationRule
                 Text = text
             }
         };
-    }
-
-    private static string GetParagraphText(Paragraph paragraph)
-    {
-        return string.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static string GetRunText(Run run)
