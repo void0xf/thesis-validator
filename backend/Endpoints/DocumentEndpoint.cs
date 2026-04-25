@@ -45,11 +45,13 @@ public static class DocumentEndpoint
     private static IResult ValidateDocument(
         IFormFile? file,
         [FromForm] string? rules,
+        [FromForm] bool? skipBeforeTableOfContents,
+        [FromForm] bool? skipTextBoxes,
         ThesisValidatorService thesisValidatorService,
         IOptions<UniversityConfig> universityConfigOptions,
         ILoggerFactory loggerFactory)
     {
-        if (!DocumentUploadRequestValidator.TryValidate(file, rules, thesisValidatorService, out var request, out var error))
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, skipBeforeTableOfContents, skipTextBoxes, thesisValidatorService, out var request, out var error))
         {
             return error!;
         }
@@ -57,7 +59,7 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var config = universityConfigOptions.Value;
+            var config = CreateRequestConfig(universityConfigOptions.Value, request);
             var (validationResults, headings) = thesisValidatorService.Validate(stream, config, request.SelectedRules);
             var results = validationResults.ToList();
 
@@ -77,11 +79,13 @@ public static class DocumentEndpoint
     private static IResult ValidateWithComments(
         IFormFile? file,
         [FromForm] string? rules,
+        [FromForm] bool? skipBeforeTableOfContents,
+        [FromForm] bool? skipTextBoxes,
         ThesisValidatorService thesisValidatorService,
         IOptions<UniversityConfig> universityConfigOptions,
         ILoggerFactory loggerFactory)
     {
-        if (!DocumentUploadRequestValidator.TryValidate(file, rules, thesisValidatorService, out var request, out var error))
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, skipBeforeTableOfContents, skipTextBoxes, thesisValidatorService, out var request, out var error))
         {
             return error!;
         }
@@ -89,7 +93,7 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var config = universityConfigOptions.Value;
+            var config = CreateRequestConfig(universityConfigOptions.Value, request);
             var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, request.SelectedRules);
 
             var outputFileName = DocumentEndpointResults.GetAnnotatedFileName(request.FileName);
@@ -122,5 +126,36 @@ public static class DocumentEndpoint
     private static IResult HealthCheck()
     {
         return Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
+    }
+
+    private static UniversityConfig CreateRequestConfig(
+        UniversityConfig baseConfig,
+        DocumentUploadRequest request)
+    {
+        return new UniversityConfig
+        {
+            Name = baseConfig.Name,
+            CheckGrammar = baseConfig.CheckGrammar,
+            Language = baseConfig.Language,
+            Formatting = new FormattingConfig
+            {
+                CheckTableOfContents = baseConfig.Formatting.CheckTableOfContents,
+                SkipBeforeTableOfContents = request.SkipBeforeTableOfContents,
+                SkipTextBoxes = request.SkipTextBoxes ?? baseConfig.Formatting.SkipTextBoxes,
+                SkipTableOfContentsContent = baseConfig.Formatting.SkipTableOfContentsContent,
+                Font = new FontConfig
+                {
+                    FontFamily = baseConfig.Formatting.Font.FontFamily,
+                    FontSize = baseConfig.Formatting.Font.FontSize
+                },
+                Layout = new LayoutConfig
+                {
+                    MarginLeft = baseConfig.Formatting.Layout.MarginLeft,
+                    MarginRight = baseConfig.Formatting.Layout.MarginRight,
+                    RequiredIndentCm = baseConfig.Formatting.Layout.RequiredIndentCm,
+                    ParagraphSpacingRule = baseConfig.Formatting.Layout.ParagraphSpacingRule.ToList()
+                }
+            }
+        };
     }
 }
