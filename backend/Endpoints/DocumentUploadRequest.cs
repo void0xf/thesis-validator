@@ -5,4 +5,6 @@ namespace backend.Endpoints;
 internal sealed record DocumentUploadRequest(
     IFormFile File,
     string FileName,
-    IReadOnlyList<string> SelectedRules);
+    IReadOnlyList<string> SelectedRules,
+    bool SkipBeforeTableOfContents,
+    bool? SkipTextBoxes);

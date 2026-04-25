@@ -9,6 +9,8 @@ internal static class DocumentUploadRequestValidator
     public static bool TryValidate(
         IFormFile? file,
         string? rules,
+        bool? skipBeforeTableOfContents,
+        bool? skipTextBoxes,
         ThesisValidatorService thesisValidatorService,
         out DocumentUploadRequest? request,
         out IResult? error)
@@ -34,7 +36,7 @@ internal static class DocumentUploadRequestValidator
             return false;
         }
 
-        request = new DocumentUploadRequest(file!, fileName, selectedRules);
+        request = new DocumentUploadRequest(file!, fileName, selectedRules, skipBeforeTableOfContents == true, skipTextBoxes);
         return true;
     }
 
