@@ -56,11 +56,14 @@ public class GrammarRuleTests
             });
 
         var httpClient = new HttpClient(handlerMock.Object);
-        var configMock = new Mock<IConfiguration>();
-        configMock.Setup(c => c.GetValue<string>("LanguageTool:BaseUrl", It.IsAny<string>()))
-            .Returns("http://localhost:8010");
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["LanguageTool:BaseUrl"] = "http://localhost:8010"
+            })
+            .Build();
 
-        return new LanguageToolService(httpClient, configMock.Object);
+        return new LanguageToolService(httpClient, configuration);
     }
 
     [Fact]
