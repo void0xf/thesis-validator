@@ -2,7 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-namespace backend.Services;
+namespace backend.Services.Comments;
 
 /// <summary>
 /// Service for adding comments to Word documents.
@@ -144,7 +144,7 @@ public class DocumentCommentService
             commentsPart = doc.MainDocumentPart.AddNewPart<WordprocessingCommentsPart>();
         }
 
-        commentsPart.Comments ??= new Comments();
+        commentsPart.Comments ??= new DocumentFormat.OpenXml.Wordprocessing.Comments();
         return commentsPart;
     }
 

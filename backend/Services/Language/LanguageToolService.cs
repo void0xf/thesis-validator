@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
-namespace backend.Services;
+namespace backend.Services.Language;
 
 /// <summary>
 /// Service for communicating with the LanguageTool API for grammar and spell checking.

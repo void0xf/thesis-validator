@@ -1,4 +1,4 @@
-namespace backend.Services;
+namespace backend.Services.Exceptions;
 
 public sealed class InvalidThesisDocumentException : Exception
 {
