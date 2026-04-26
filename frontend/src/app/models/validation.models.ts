@@ -14,6 +14,7 @@ export interface ValidationResult {
   ruleName: string;
   message: string;
   isError: boolean;
+  severity?: 'Error' | 'Warning' | string;
   category?: string;
   location: DocumentLocation | null;
 }
@@ -42,6 +43,11 @@ export interface ValidationOptions {
 
 export interface RuleInfo {
   name: string;
+  displayName?: string;
+  category?: string;
+  defaultSeverity?: string;
+  enabled?: boolean;
+  selectable?: boolean;
 }
 
 export interface RulesResponse {
