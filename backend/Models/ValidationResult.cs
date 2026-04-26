@@ -2,14 +2,49 @@ using System.Text.Json.Serialization;
 
 namespace backend.Models;
 
+public static class ValidationSeverity
+{
+    public const string Error = "Error";
+    public const string Warning = "Warning";
+
+    public static string Normalize(string? severity)
+    {
+        return string.Equals(severity, Warning, StringComparison.OrdinalIgnoreCase)
+            ? Warning
+            : Error;
+    }
+}
+
+public enum ParagraphIndexKind
+{
+    Descendant,
+    BodyElement
+}
+
 public class ValidationResult
 {
+    private string _severity = ValidationSeverity.Error;
+
     public string RuleName { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
-    public bool IsError { get; set; }
+
+    public bool IsError
+    {
+        get => string.Equals(Severity, ValidationSeverity.Error, StringComparison.OrdinalIgnoreCase);
+        set => Severity = value ? ValidationSeverity.Error : ValidationSeverity.Warning;
+    }
+
+    public string Severity
+    {
+        get => _severity;
+        set => _severity = ValidationSeverity.Normalize(value);
+    }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Category { get; set; }
+
+    [JsonIgnore]
+    public ParagraphIndexKind ParagraphIndexKind { get; set; } = ParagraphIndexKind.Descendant;
 
     public DocumentLocation Location { get; set; } = new();
 }
