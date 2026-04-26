@@ -29,18 +29,7 @@ public class ParagraphSpacingRule : IValidationRule
             if (StylePatternExclusionHelper.HasExcludedStyle(paragraph))
                 continue;
 
-            var spacing = paragraph.ParagraphProperties?.SpacingBetweenLines;
-            var afterValue = spacing?.After?.Value;
-
-            int spacingAfter = 0;
-            if (afterValue != null)
-            {
-                // Try to parse. If it fails (e.g. "auto"), we might want to flag it or treat as error.
-                if (!int.TryParse(afterValue, out spacingAfter))
-                {
-                    spacingAfter = -1;
-                }
-            }
+            var spacingAfter = ResolveEffectiveSpacingAfter(doc, paragraph);
             var preview = GetParagraphPreview(paragraph, config, 50);
 
             if (!allowedSpacingTwips.Contains(spacingAfter) 
@@ -66,6 +55,92 @@ public class ParagraphSpacingRule : IValidationRule
         }
 
         return errors;
+    }
+
+    private static int ResolveEffectiveSpacingAfter(WordprocessingDocument doc, Paragraph paragraph)
+    {
+        var directAfter = ParseSpacingValue(paragraph.ParagraphProperties?.SpacingBetweenLines?.After?.Value);
+        if (directAfter.HasValue)
+            return directAfter.Value;
+
+        var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+        if (!string.IsNullOrEmpty(styleId))
+        {
+            var styleAfter = GetSpacingAfterFromStyleChain(doc, styleId, new HashSet<string>());
+            if (styleAfter.HasValue)
+                return styleAfter.Value;
+        }
+
+        var defaultStyleAfter = GetDefaultParagraphStyleSpacingAfter(doc);
+        if (defaultStyleAfter.HasValue)
+            return defaultStyleAfter.Value;
+
+        var docDefaults = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles?
+            .DocDefaults?
+            .ParagraphPropertiesDefault?
+            .ParagraphPropertiesBaseStyle?
+            .SpacingBetweenLines;
+        var docDefaultAfter = ParseSpacingValue(docDefaults?.After?.Value);
+        return docDefaultAfter ?? 0;
+    }
+
+    private static int? GetSpacingAfterFromStyleChain(
+        WordprocessingDocument doc,
+        string styleId,
+        HashSet<string> visited)
+    {
+        if (string.IsNullOrEmpty(styleId) || !visited.Add(styleId))
+            return null;
+
+        var style = FindStyle(doc, styleId);
+        if (style is null)
+            return null;
+
+        var spacingAfter = ParseSpacingValue(style.StyleParagraphProperties?.SpacingBetweenLines?.After?.Value);
+        if (spacingAfter.HasValue)
+            return spacingAfter.Value;
+
+        var basedOnStyleId = style.BasedOn?.Val?.Value;
+        return string.IsNullOrEmpty(basedOnStyleId)
+            ? null
+            : GetSpacingAfterFromStyleChain(doc, basedOnStyleId, visited);
+    }
+
+    private static int? GetDefaultParagraphStyleSpacingAfter(WordprocessingDocument doc)
+    {
+        var styles = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles;
+        var defaultStyle = styles?
+            .Elements<Style>()
+            .FirstOrDefault(s => s.Type?.Value == StyleValues.Paragraph && s.Default?.Value == true);
+
+        if (defaultStyle is null)
+            return null;
+
+        var spacingAfter = ParseSpacingValue(defaultStyle.StyleParagraphProperties?.SpacingBetweenLines?.After?.Value);
+        if (spacingAfter.HasValue)
+            return spacingAfter.Value;
+
+        var basedOnStyleId = defaultStyle.BasedOn?.Val?.Value;
+        return string.IsNullOrEmpty(basedOnStyleId)
+            ? null
+            : GetSpacingAfterFromStyleChain(doc, basedOnStyleId, new HashSet<string>());
+    }
+
+    private static Style? FindStyle(WordprocessingDocument doc, string styleId)
+    {
+        return doc.MainDocumentPart?.StyleDefinitionsPart?.Styles?
+            .Elements<Style>()
+            .FirstOrDefault(s => string.Equals(s.StyleId?.Value, styleId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int? ParseSpacingValue(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return null;
+
+        return int.TryParse(value, out var spacing)
+            ? spacing
+            : -1;
     }
 
     private static string GetParagraphPreview(Paragraph paragraph, UniversityConfig config, int maxLength)
