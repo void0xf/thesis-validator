@@ -1,7 +1,8 @@
 using System.Reflection;
 using backend.Endpoints;
 using backend.Models;
-using backend.Services;
+using backend.Services.Analysis;
+using backend.Services.Language;
 using Backend.Models;
 using ThesisValidator.Rules;
 

@@ -1,9 +1,13 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Formatting;
+using backend.Services.Results;
 
 namespace Rules;
 
@@ -29,13 +33,11 @@ public class NoDotsInTitlesRule : IValidationRule
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            // Only check paragraphs with target styles
             if (!HasTargetStyle(paragraph))
                 continue;
 
-            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
+            var text = TextExtractionService.GetParagraphText(doc, paragraph, config);
 
-            // Skip empty paragraphs
             if (string.IsNullOrWhiteSpace(text))
                 continue;
 
@@ -44,22 +46,17 @@ public class NoDotsInTitlesRule : IValidationRule
             // Check if ends with a single period (not ellipsis)
             if (EndsWithSinglePeriod(trimmedText))
             {
-                var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value ?? "Unknown";
-                var preview = Truncate(trimmedText, 60);
+                var styleId = StyleResolutionService.GetParagraphStyleId(paragraph) ?? "Unknown";
+                var preview = TextExtractionService.Truncate(trimmedText, 60);
 
                 var errorMessage = $"Title/Heading should not end with a period. Style: {styleId}. Text: \"{preview}\"";
 
-                errors.Add(new ValidationResult
-                {
-                    RuleName = Name,
-                    Message = errorMessage,
-                    IsError = true,
-                    Location = new DocumentLocation
-                    {
-                        Paragraph = paragraphIndex,
-                        Text = preview
-                    }
-                });
+                errors.Add(ValidationResultFactory.ForParagraph(
+                    Name,
+                    config,
+                    errorMessage,
+                    paragraphIndex,
+                    preview));
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }
@@ -70,7 +67,7 @@ public class NoDotsInTitlesRule : IValidationRule
 
     private static bool HasTargetStyle(Paragraph paragraph)
     {
-        var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+        var styleId = StyleResolutionService.GetParagraphStyleId(paragraph);
         if (string.IsNullOrEmpty(styleId))
             return false;
 
@@ -95,10 +92,4 @@ public class NoDotsInTitlesRule : IValidationRule
         return true;
     }
 
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text[..maxLength] + "...";
-    }
 }

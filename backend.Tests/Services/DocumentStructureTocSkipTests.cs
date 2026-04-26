@@ -1,9 +1,9 @@
-using backend.Services;
 using backend.Tests.Helpers;
 using Backend.Models;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using backend.Services.Analysis;
 
 namespace backend.Tests.Services;
 

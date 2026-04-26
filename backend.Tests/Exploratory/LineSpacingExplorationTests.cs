@@ -14,7 +14,7 @@ public class LineSpacingExplorationTests
         _output = output;
     }
 
-    [Fact]
+    [Fact(Skip = "Exploratory test depends on local DOCX fixtures.")]
     public void Explore_LineSpacing_Values()
     {
         using var doc = DocxTestHelper.OpenDocxAsRead("WrongIndentANDSpacing/hello - Copy.docx");
@@ -52,7 +52,7 @@ public class LineSpacingExplorationTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Exploratory test depends on local DOCX fixtures.")]
     public void Explore_Output_Docx()
     {
         // Direct path to fixtures hello.docx
@@ -94,7 +94,7 @@ public class LineSpacingExplorationTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Exploratory test depends on local DOCX fixtures.")]
     public void Explore_Styles_In_HelloDocx()
     {
         using var doc = WordprocessingDocument.Open(

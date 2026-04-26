@@ -1,7 +1,6 @@
 using System.Reflection;
 using backend.Models;
 using backend.Endpoints;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
 
 namespace backend.Tests.Endpoints;
 

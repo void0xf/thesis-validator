@@ -1,10 +1,15 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Results;
+using backend.Services.Skipping;
+using backend.Services.Structure;
 
 namespace backend.Rules;
 
@@ -36,6 +41,7 @@ public class EmptySectionStructureRule : IValidationRule
         int paragraphIndex = 0;
         int childIndex = 0;
         var firstIncludedChildIndex = DocumentAnalysisScope.GetFirstIncludedBodyChildIndex(doc, config);
+        var tocParagraphs = TableOfContentsSkipRule.GetSkippedParagraphs(doc, config);
 
         foreach (var element in body.ChildElements)
         {
@@ -53,7 +59,15 @@ public class EmptySectionStructureRule : IValidationRule
                 continue;
             }
 
-            var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
+            var skipDecision = SkipDecisionService.ShouldSkipParagraph(
+                doc,
+                paragraph,
+                config,
+                new SkipContext(paragraphIndex, null, tocParagraphs));
+            if (skipDecision.ShouldSkip)
+                continue;
+
+            var level = HeadingDetectionService.GetHeadingLevel(doc, paragraph);
 
             if (level is not null)
             {
@@ -62,7 +76,9 @@ public class EmptySectionStructureRule : IValidationRule
                     && level > lastHeadingLevel
                     && !hasBodyContentSinceHeading)
                 {
-                    var currentText = Truncate(DocumentAnalysisScope.GetParagraphText(paragraph, config).Trim(), 50);
+                    var currentText = TextExtractionService.Truncate(
+                        TextExtractionService.GetParagraphText(doc, paragraph, config).Trim(),
+                        50);
 
                     var msg =
                         $"Heading {lastHeadingLevel} \"{lastHeadingPreview}\" " +
@@ -70,17 +86,13 @@ public class EmptySectionStructureRule : IValidationRule
                         "with no introductory text. Add at least one paragraph of body text " +
                         "before the first sub-section.";
 
-                    errors.Add(new ValidationResult
-                    {
-                        RuleName = Name,
-                        Message = msg,
-                        IsError = true,
-                        Location = new DocumentLocation
-                        {
-                            Paragraph = lastHeadingParaIdx,
-                            Text = lastHeadingPreview
-                        }
-                    });
+                    errors.Add(ValidationResultFactory.ForParagraph(
+                        Name,
+                        config,
+                        msg,
+                        lastHeadingParaIdx,
+                        lastHeadingPreview,
+                        ParagraphIndexKind.BodyElement));
 
                     if (lastHeadingParagraph is not null)
                         commentService?.AddCommentToParagraph(doc, lastHeadingParagraph, msg);
@@ -88,7 +100,9 @@ public class EmptySectionStructureRule : IValidationRule
 
                 lastHeadingLevel = level;
                 lastHeadingParaIdx = paragraphIndex;
-                lastHeadingPreview = Truncate(DocumentAnalysisScope.GetParagraphText(paragraph, config).Trim(), 60);
+                lastHeadingPreview = TextExtractionService.Truncate(
+                    TextExtractionService.GetParagraphText(doc, paragraph, config).Trim(),
+                    60);
                 lastHeadingParagraph = paragraph;
                 hasBodyContentSinceHeading = false;
             }
@@ -96,7 +110,7 @@ public class EmptySectionStructureRule : IValidationRule
             {
                 // Non-heading paragraph — any visible text counts as body content.
                 if (!hasBodyContentSinceHeading
-                    && !string.IsNullOrWhiteSpace(DocumentAnalysisScope.GetParagraphText(paragraph, config)))
+                    && !string.IsNullOrWhiteSpace(TextExtractionService.GetParagraphText(doc, paragraph, config)))
                 {
                     hasBodyContentSinceHeading = true;
                 }
@@ -104,11 +118,5 @@ public class EmptySectionStructureRule : IValidationRule
         }
 
         return errors;
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
-        return text[..maxLength] + "...";
     }
 }

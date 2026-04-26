@@ -1,7 +1,7 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
+using backend.Services.Comments;
 
 namespace ThesisValidator.Rules;
 

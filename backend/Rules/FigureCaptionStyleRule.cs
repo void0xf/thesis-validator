@@ -1,26 +1,25 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Formatting;
+using backend.Services.Results;
+using backend.Services.Structure;
 
 namespace backend.Rules;
 
 /// <summary>
-/// Validates that every figure (image/drawing) is immediately followed by a caption
-/// paragraph that uses a dedicated Caption style and meets formatting requirements:
-///   • Style is not "Normal" (must be e.g. "Caption", "Legenda")
-///   • Font size: 11 pt
-///   • Alignment: Centered
-///   • Indentation: None (left = 0, first-line = 0)
+/// Validates that every figure is immediately followed by a caption with expected caption formatting.
 /// </summary>
 public class FigureCaptionStyleRule : IValidationRule
 {
     public string Name => "FigureCaptionStyleRule";
 
     private const double ExpectedFontSizePt = 11.0;
-    private const double TwipsPerCm = 567.0;
     private const int IndentToleranceTwips = 10;
 
     public IEnumerable<ValidationResult> Validate(
@@ -34,325 +33,142 @@ public class FigureCaptionStyleRule : IValidationRule
         for (int i = 0; i < paragraphs.Count; i++)
         {
             var (figureParagraph, figureIdx) = paragraphs[i];
-            if (!ContainsImage(figureParagraph, config))
+            if (!FigureDetectionService.ContainsImage(figureParagraph, config))
                 continue;
 
-            // ── Rule 1: caption paragraph must exist ──
             if (i + 1 >= paragraphs.Count)
             {
-                AddMissingCaption(doc, errors, figureParagraph, figureIdx, commentService);
+                AddMissingCaption(doc, config, errors, figureParagraph, figureIdx, commentService);
                 continue;
             }
 
             var (caption, captionIdx) = paragraphs[i + 1];
-            var captionText = DocumentAnalysisScope.GetParagraphText(caption, config).Trim();
+            var captionText = TextExtractionService.GetParagraphText(doc, caption, config).Trim();
 
             if (string.IsNullOrWhiteSpace(captionText))
             {
-                AddMissingCaption(doc, errors, figureParagraph, figureIdx, commentService);
+                AddMissingCaption(doc, config, errors, figureParagraph, figureIdx, commentService);
                 continue;
             }
 
-            var preview = Truncate(captionText, 50);
-            var styleId = caption.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
-
-            // ── Rule 2: style must not be Normal / absent ──
-            if (string.IsNullOrEmpty(styleId) || IsNormalStyle(styleId))
+            var preview = TextExtractionService.Truncate(captionText, 50);
+            if (!CaptionDetectionService.UsesDedicatedCaptionStyle(caption))
             {
-                var label = string.IsNullOrEmpty(styleId) ? "Normal" : styleId;
-                var msg = $"Figure caption uses \"{label}\" style — assign a Caption style (e.g., \"Caption\", \"Legenda\").";
-                errors.Add(MakeResult(msg, captionIdx, preview));
+                var label = CaptionDetectionService.GetCaptionStyleLabel(caption);
+                var msg = $"Figure caption uses \"{label}\" style - assign a Caption style (e.g., \"Caption\", \"Legenda\").";
+                errors.Add(MakeResult(config, msg, captionIdx, preview));
                 commentService?.AddCommentToParagraph(doc, caption, msg);
             }
 
-            // ── Rule 3a: font size = 11 pt ──
-            CheckFontSize(doc, caption, styleId, captionIdx, preview, errors);
-
-            // ── Rule 3b: centered alignment ──
-            CheckAlignment(doc, caption, styleId, captionIdx, preview, errors);
-
-            // ── Rule 3c: no indentation ──
-            CheckIndentation(doc, caption, styleId, captionIdx, preview, errors);
+            CheckFontSize(doc, config, caption, captionIdx, preview, errors);
+            CheckAlignment(doc, config, caption, captionIdx, preview, errors);
+            CheckIndentation(doc, config, caption, captionIdx, preview, errors);
         }
 
         return errors;
     }
 
-    // ------------------------------------------------------------------ //
-    //  Image detection
-    // ------------------------------------------------------------------ //
-
-    private static bool ContainsImage(Paragraph paragraph, UniversityConfig config)
-    {
-        // DrawingML images (<w:drawing>)
-        if (paragraph.Descendants<Drawing>().Any(drawing =>
-                !config.Formatting.SkipTextBoxes || !DocumentAnalysisScope.ContainsTextBoxContent(drawing)))
-            return true;
-
-        // Legacy VML images (<w:pict>)
-        if (paragraph.Descendants<Picture>().Any(picture =>
-                !config.Formatting.SkipTextBoxes || !DocumentAnalysisScope.ContainsTextBoxContent(picture)))
-            return true;
-
-        return false;
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Missing caption helper
-    // ------------------------------------------------------------------ //
-
-    private static void AddMissingCaption(
+    private void AddMissingCaption(
         WordprocessingDocument doc,
+        UniversityConfig config,
         List<ValidationResult> errors,
         Paragraph imageParagraph,
         int paragraphIndex,
         DocumentCommentService? commentService)
     {
-        var msg = "Figure has no caption — add a caption paragraph with text immediately after the image.";
-        errors.Add(MakeResult(msg, paragraphIndex, "[Image]"));
+        var msg = "Figure has no caption - add a caption paragraph with text immediately after the image.";
+        errors.Add(MakeResult(config, msg, paragraphIndex, "[Image]"));
         commentService?.AddCommentToParagraph(doc, imageParagraph, msg);
     }
 
-    // ------------------------------------------------------------------ //
-    //  Rule 2 helper
-    // ------------------------------------------------------------------ //
-
-    private static bool IsNormalStyle(string styleId)
-    {
-        return string.Equals(styleId, "Normal", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(styleId, "Normalny", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Rule 3a — Font size
-    // ------------------------------------------------------------------ //
-
-    private static void CheckFontSize(
+    private void CheckFontSize(
         WordprocessingDocument doc,
+        UniversityConfig config,
         Paragraph caption,
-        string? styleId,
         int paraIndex,
         string preview,
         List<ValidationResult> errors)
     {
-        var pt = ResolveEffectiveFontSizePt(doc, caption, styleId);
-        if (pt is null) return;
+        var textRun = CaptionDetectionService.GetFirstTextRun(caption, config);
+        if (textRun is null)
+            return;
+
+        var pt = FormattingResolutionService.ResolveFontSizePt(doc, caption, textRun);
+        if (pt is null)
+            return;
 
         if (Math.Abs(pt.Value - ExpectedFontSizePt) > 0.01)
         {
             errors.Add(MakeResult(
+                config,
                 $"Figure caption font size must be 11pt, found {pt:0.##}pt.",
-                paraIndex, preview));
+                paraIndex,
+                preview));
         }
     }
 
-    private static double? ResolveEffectiveFontSizePt(
-        WordprocessingDocument doc, Paragraph caption, string? styleId)
-    {
-        // 1. First text-bearing run with explicit size
-        foreach (var run in caption.Elements<Run>())
-        {
-            if (string.IsNullOrWhiteSpace(GetRunText(run))) continue;
-            if (TryParseHalfPts(run.RunProperties?.FontSize?.Val?.Value, out var pt))
-                return pt;
-        }
-
-        // 2. Paragraph style (walk basedOn chain)
-        if (!string.IsNullOrEmpty(styleId))
-        {
-            var pt = GetFontSizeFromStyleChain(doc, styleId, new HashSet<string>());
-            if (pt is not null) return pt;
-        }
-
-        // 3. Default paragraph style
-        return GetDefaultFontSizePt(doc);
-    }
-
-    private static double? GetFontSizeFromStyleChain(
-        WordprocessingDocument doc, string styleId, HashSet<string> visited)
-    {
-        if (!visited.Add(styleId)) return null;
-
-        var style = FindStyle(doc, styleId);
-        if (style is null) return null;
-
-        if (TryParseHalfPts(style.StyleRunProperties?.FontSize?.Val?.Value, out var pt))
-            return pt;
-
-        var basedOn = style.BasedOn?.Val?.Value;
-        return !string.IsNullOrEmpty(basedOn)
-            ? GetFontSizeFromStyleChain(doc, basedOn, visited)
-            : null;
-    }
-
-    private static double? GetDefaultFontSizePt(WordprocessingDocument doc)
-    {
-        var styles = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles;
-        var def = styles?.Elements<Style>()
-            .FirstOrDefault(s => s.Type?.Value == StyleValues.Paragraph && s.Default?.Value == true);
-        return TryParseHalfPts(def?.StyleRunProperties?.FontSize?.Val?.Value, out var pt)
-            ? pt : null;
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Rule 3b — Alignment
-    // ------------------------------------------------------------------ //
-
-    private static void CheckAlignment(
+    private void CheckAlignment(
         WordprocessingDocument doc,
+        UniversityConfig config,
         Paragraph caption,
-        string? styleId,
         int paraIndex,
         string preview,
         List<ValidationResult> errors)
     {
-        var jc = ResolveEffectiveJustification(doc, caption, styleId);
-        if (jc == JustificationValues.Center) return;
+        var justification = FormattingResolutionService.ResolveJustification(
+            doc,
+            caption,
+            includeDefaultStyle: false);
+        if (justification == JustificationValues.Center)
+            return;
 
-        string name;
-        if (jc == JustificationValues.Right)
-            name = "right-aligned";
-        else if (jc == JustificationValues.Both)
-            name = "justified";
-        else
-            name = "left-aligned";
+        var name = justification == JustificationValues.Right
+            ? "right-aligned"
+            : justification == JustificationValues.Both
+                ? "justified"
+                : "left-aligned";
 
         errors.Add(MakeResult(
+            config,
             $"Figure caption must be centered, found {name}.",
-            paraIndex, preview));
+            paraIndex,
+            preview));
     }
 
-    private static JustificationValues ResolveEffectiveJustification(
-        WordprocessingDocument doc, Paragraph caption, string? styleId)
-    {
-        var jc = caption.ParagraphProperties?.Justification?.Val?.Value;
-        if (jc is not null) return jc.Value;
-
-        if (!string.IsNullOrEmpty(styleId))
-        {
-            var styleJc = GetJustificationFromStyleChain(doc, styleId, new HashSet<string>());
-            if (styleJc is not null) return styleJc.Value;
-        }
-
-        return JustificationValues.Left;
-    }
-
-    private static JustificationValues? GetJustificationFromStyleChain(
-        WordprocessingDocument doc, string styleId, HashSet<string> visited)
-    {
-        if (!visited.Add(styleId)) return null;
-
-        var style = FindStyle(doc, styleId);
-        if (style is null) return null;
-
-        var jc = style.StyleParagraphProperties?.Justification?.Val?.Value;
-        if (jc is not null) return jc;
-
-        var basedOn = style.BasedOn?.Val?.Value;
-        return !string.IsNullOrEmpty(basedOn)
-            ? GetJustificationFromStyleChain(doc, basedOn, visited)
-            : null;
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Rule 3c — Indentation
-    // ------------------------------------------------------------------ //
-
-    private static void CheckIndentation(
+    private void CheckIndentation(
         WordprocessingDocument doc,
+        UniversityConfig config,
         Paragraph caption,
-        string? styleId,
         int paraIndex,
         string preview,
         List<ValidationResult> errors)
     {
-        var (left, firstLine) = ResolveEffectiveIndentation(doc, caption, styleId);
+        var (left, firstLine) = FormattingResolutionService.ResolveIndentation(
+            doc,
+            caption,
+            includeDefaultStyle: false);
         if (Math.Abs(left) <= IndentToleranceTwips && Math.Abs(firstLine) <= IndentToleranceTwips)
             return;
 
         errors.Add(MakeResult(
-            $"Figure caption must have no indentation (left: {left / TwipsPerCm:F2}cm, first-line: {firstLine / TwipsPerCm:F2}cm).",
-            paraIndex, preview));
+            config,
+            $"Figure caption must have no indentation (left: {left / UnitConversion.TwipsPerCm:F2}cm, first-line: {firstLine / UnitConversion.TwipsPerCm:F2}cm).",
+            paraIndex,
+            preview));
     }
 
-    private static (int left, int firstLine) ResolveEffectiveIndentation(
-        WordprocessingDocument doc, Paragraph caption, string? styleId)
+    private ValidationResult MakeResult(
+        UniversityConfig config,
+        string message,
+        int paragraph,
+        string text)
     {
-        var indent = caption.ParagraphProperties?.Indentation;
-        if (indent is not null)
-            return ParseIndentation(indent);
-
-        if (!string.IsNullOrEmpty(styleId))
-        {
-            var style = FindStyle(doc, styleId);
-            indent = style?.StyleParagraphProperties?.Indentation;
-            if (indent is not null)
-                return ParseIndentation(indent);
-        }
-
-        return (0, 0);
-    }
-
-    private static (int left, int firstLine) ParseIndentation(Indentation indent)
-    {
-        var left = ParseTwips(indent.Left?.Value);
-        var firstLine = ParseTwips(indent.FirstLine?.Value);
-        var hanging = ParseTwips(indent.Hanging?.Value);
-        // Hanging indent is stored separately; effective first-line = -hanging
-        if (hanging != 0 && firstLine == 0)
-            firstLine = -hanging;
-        return (left, firstLine);
-    }
-
-    // ------------------------------------------------------------------ //
-    //  Shared helpers
-    // ------------------------------------------------------------------ //
-
-    private static Style? FindStyle(WordprocessingDocument doc, string styleId)
-    {
-        var styles = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles;
-        return styles?.Elements<Style>()
-            .FirstOrDefault(s => string.Equals(s.StyleId, styleId, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool TryParseHalfPts(string? value, out double points)
-    {
-        points = 0;
-        if (string.IsNullOrEmpty(value)) return false;
-        if (!double.TryParse(value, out var hp)) return false;
-        points = hp / 2.0;
-        return true;
-    }
-
-    private static int ParseTwips(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return 0;
-        return int.TryParse(value, out var v) ? v : 0;
-    }
-
-    private static ValidationResult MakeResult(string message, int paragraph, string text)
-    {
-        return new ValidationResult
-        {
-            RuleName = "FigureCaptionStyleRule",
-            Message = message,
-            IsError = true,
-            Location = new DocumentLocation
-            {
-                Paragraph = paragraph,
-                Text = text
-            }
-        };
-    }
-
-    private static string GetRunText(Run run)
-    {
-        return string.Concat(run.Elements<Text>().Select(t => t.Text));
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
-        return text[..maxLength] + "...";
+        return ValidationResultFactory.ForParagraph(
+            Name,
+            config,
+            message,
+            paragraph,
+            text,
+            ParagraphIndexKind.BodyElement);
     }
 }

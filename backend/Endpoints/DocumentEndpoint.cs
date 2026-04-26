@@ -1,8 +1,9 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using backend.Services.Analysis;
+using backend.Services.Exceptions;
 
 namespace backend.Endpoints;
 
@@ -51,7 +52,13 @@ public static class DocumentEndpoint
         IOptions<UniversityConfig> universityConfigOptions,
         ILoggerFactory loggerFactory)
     {
-        if (!DocumentUploadRequestValidator.TryValidate(file, rules, skipBeforeTableOfContents, skipTextBoxes, thesisValidatorService, out var request, out var error))
+        if (!DocumentUploadRequestValidator
+                .TryValidate(
+                    file, 
+                    rules, 
+                    skipBeforeTableOfContents, 
+                    skipTextBoxes, 
+                    thesisValidatorService, out var request, out var error))
         {
             return error!;
         }
@@ -60,7 +67,8 @@ public static class DocumentEndpoint
         {
             using var stream = request!.File.OpenReadStream();
             var config = CreateRequestConfig(universityConfigOptions.Value, request);
-            var (validationResults, headings) = thesisValidatorService.Validate(stream, config, request.SelectedRules);
+            var (validationResults, headings) = thesisValidatorService
+                .Validate(stream, config, request.SelectedRules);
             var results = validationResults.ToList();
 
             var response = DocumentEndpointResults.CreateValidationResponse(request, config, results, headings);
@@ -116,8 +124,16 @@ public static class DocumentEndpoint
 
     private static IResult GetAvailableRules(ThesisValidatorService thesisValidatorService)
     {
-        var ruleList = thesisValidatorService.GetAvailableRuleNames()
-            .Select(name => new { Name = name })
+        var ruleList = thesisValidatorService.GetAvailableRules()
+            .Select(rule => new
+            {
+                Name = rule.Id,
+                rule.DisplayName,
+                rule.Category,
+                rule.DefaultSeverity,
+                rule.Enabled,
+                rule.Selectable
+            })
             .ToList();
 
         return Results.Ok(new { Rules = ruleList, Count = ruleList.Count });
@@ -137,6 +153,25 @@ public static class DocumentEndpoint
             Name = baseConfig.Name,
             CheckGrammar = baseConfig.CheckGrammar,
             Language = baseConfig.Language,
+            Analysis = new AnalysisConfig
+            {
+                SkipBeforeTableOfContents = request.SkipBeforeTableOfContents,
+                SkipTextBoxes = request.SkipTextBoxes ?? baseConfig.Analysis.SkipTextBoxes,
+                SkipTableOfContentsContent = baseConfig.Analysis.SkipTableOfContentsContent,
+                SkipCodeFonts = baseConfig.Analysis.SkipCodeFonts,
+                CodeFontFamilies = baseConfig.Analysis.CodeFontFamilies.ToList()
+            },
+            Rules = new RuleSettingsConfig
+            {
+                Overrides = baseConfig.Rules.Overrides.ToDictionary(
+                    pair => pair.Key,
+                    pair => new RuleOverrideConfig
+                    {
+                        Severity = pair.Value.Severity,
+                        Enabled = pair.Value.Enabled
+                    },
+                    StringComparer.OrdinalIgnoreCase)
+            },
             Formatting = new FormattingConfig
             {
                 CheckTableOfContents = baseConfig.Formatting.CheckTableOfContents,

@@ -1,9 +1,13 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Results;
+using backend.Services.Structure;
 
 namespace Rules;
 
@@ -22,26 +26,21 @@ public class HierarchyDepthRule : IValidationRule
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            var level = HeadingStyleHelper.GetHeadingLevel(doc, paragraph);
+            var level = HeadingDetectionService.GetHeadingLevel(doc, paragraph);
             if (level is null || level <= MaxAllowedLevel)
                 continue;
 
-            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
-            var preview = text.Length > 60 ? text[..60] + "..." : text;
+            var text = TextExtractionService.GetParagraphText(doc, paragraph, config);
+            var preview = TextExtractionService.Truncate(text, 60);
 
             var errorMessage = $"Structure too deep. Detected Level {level}, but maximum allowed is {MaxAllowedLevel}.";
 
-            errors.Add(new ValidationResult
-            {
-                RuleName = Name,
-                Message = errorMessage,
-                IsError = true,
-                Location = new DocumentLocation
-                {
-                    Paragraph = paragraphIndex,
-                    Text = preview
-                }
-            });
+            errors.Add(ValidationResultFactory.ForParagraph(
+                Name,
+                config,
+                errorMessage,
+                paragraphIndex,
+                preview));
 
             documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
         }

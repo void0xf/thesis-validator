@@ -1,9 +1,13 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Language;
+using backend.Services.Results;
 
 namespace backend.Rules;
 
@@ -44,13 +48,13 @@ public class GrammarRule : IValidationRule
         var errors = new List<ValidationResult>();
         if (!await _languageToolService.IsAvailableAsync())
         {
-            errors.Add(new ValidationResult
-            {
-                RuleName = Name,
-                IsError = false,
-                Message = "Grammar check skipped: LanguageTool service is not available",
-                Location = new DocumentLocation { Paragraph = 0 }
-            });
+            errors.Add(ValidationResultFactory.Create(
+                Name,
+                config,
+                "Grammar check skipped: LanguageTool service is not available",
+                new DocumentLocation { Paragraph = 0 },
+                ParagraphIndexKind.BodyElement,
+                ValidationSeverity.Warning));
             return errors;
         }
 
@@ -58,7 +62,7 @@ public class GrammarRule : IValidationRule
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            var paragraphText = DocumentAnalysisScope.GetParagraphText(paragraph, config);
+            var paragraphText = TextExtractionService.GetParagraphText(doc, paragraph, config);
             if (string.IsNullOrWhiteSpace(paragraphText))
                 continue;
 
@@ -67,6 +71,7 @@ public class GrammarRule : IValidationRule
                 paragraph,
                 paragraphText,
                 paragraphIndex,
+                config,
                 language,
                 commentService);
 
@@ -81,6 +86,7 @@ public class GrammarRule : IValidationRule
         Paragraph paragraph,
         string text,
         int paragraphIndex,
+        UniversityConfig config,
         string language,
         DocumentCommentService? commentService)
     {
@@ -92,7 +98,7 @@ public class GrammarRule : IValidationRule
 
             foreach (var match in response.Matches)
             {
-                var result = CreateValidationResult(match, paragraph, paragraphIndex, text);
+                var result = CreateValidationResult(match, config, paragraphIndex, text);
                 errors.Add(result);
 
                 // Add comment to document
@@ -104,16 +110,16 @@ public class GrammarRule : IValidationRule
         }
         catch (Exception ex)
         {
-            errors.Add(new ValidationResult
-            {
-                RuleName = Name,
-                IsError = false,
-                Message = $"Grammar check failed for paragraph {paragraphIndex}: {ex.Message}",
-                Location = new DocumentLocation
+            errors.Add(ValidationResultFactory.Create(
+                Name,
+                config,
+                $"Grammar check failed for paragraph {paragraphIndex}: {ex.Message}",
+                new DocumentLocation
                 {
                     Paragraph = paragraphIndex
-                }
-            });
+                },
+                ParagraphIndexKind.BodyElement,
+                ValidationSeverity.Warning));
         }
 
         return errors;
@@ -121,7 +127,7 @@ public class GrammarRule : IValidationRule
 
     private ValidationResult CreateValidationResult(
         LanguageToolMatch match,
-        Paragraph paragraph,
+        UniversityConfig config,
         int paragraphIndex,
         string fullText)
     {
@@ -140,20 +146,21 @@ public class GrammarRule : IValidationRule
 
         var issueType = GetIssueType(match);
 
-        return new ValidationResult
-        {
-            RuleName = Name,
-            IsError = issueType == GrammarIssueType.Spelling || issueType == GrammarIssueType.Grammar,
-            Message = $"{issueType}: {match.Message}{suggestionText}",
-            Location = new DocumentLocation
-            {
-                Paragraph = paragraphIndex,
-                Run = 1,
-                CharacterOffset = match.Offset,
-                Length = match.Length,
-                Text = Truncate(errorText, 50)
-            }
-        };
+        var severity = issueType == GrammarIssueType.Spelling || issueType == GrammarIssueType.Grammar
+            ? ValidationSeverity.Error
+            : ValidationSeverity.Warning;
+
+        return ValidationResultFactory.ForRun(
+            Name,
+            config,
+            $"{issueType}: {match.Message}{suggestionText}",
+            paragraphIndex,
+            1,
+            match.Offset,
+            match.Length,
+            TextExtractionService.Truncate(errorText, 50),
+            ParagraphIndexKind.BodyElement,
+            severity);
     }
 
     private static GrammarIssueType GetIssueType(LanguageToolMatch match)
@@ -179,12 +186,6 @@ public class GrammarRule : IValidationRule
         return GrammarIssueType.Other;
     }
 
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text[..maxLength] + "...";
-    }
 }
 
 public enum GrammarIssueType

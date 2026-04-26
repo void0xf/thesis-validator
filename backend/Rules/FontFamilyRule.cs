@@ -1,9 +1,13 @@
-﻿using backend.Models;
-using backend.Services;
+using backend.Models;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Formatting;
+using backend.Services.Results;
 
 namespace backend.Rules;
 
@@ -16,14 +20,17 @@ public class FontFamilyValidationRule : IValidationRule
         return Validate(doc, config, null);
     }
 
-    public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? commentService)
+    public IEnumerable<ValidationResult> Validate(
+        WordprocessingDocument doc,
+        UniversityConfig config,
+        DocumentCommentService? commentService)
     {
         var expectedFont = config.Formatting.Font.FontFamily;
         var errors = new List<ValidationResult>();
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            ValidateParagraph(doc, paragraph, paragraphIndex, expectedFont, errors, commentService);
+            ValidateParagraph(doc, paragraph, paragraphIndex, expectedFont, config, errors, commentService);
         }
 
         return errors;
@@ -34,6 +41,7 @@ public class FontFamilyValidationRule : IValidationRule
         Paragraph paragraph,
         int paragraphIndex,
         string expectedFont,
+        UniversityConfig config,
         List<ValidationResult> errors,
         DocumentCommentService? commentService)
     {
@@ -43,11 +51,11 @@ public class FontFamilyValidationRule : IValidationRule
         foreach (var run in paragraph.Elements<Run>())
         {
             runIndex++;
-            var text = GetRunText(run);
+            var text = TextExtractionService.GetRunText(run, config);
 
             if (!string.IsNullOrWhiteSpace(text))
             {
-                var actualFont = ResolveEffectiveFont(doc, paragraph, run);
+                var actualFont = FormattingResolutionService.ResolveFontFamily(doc, paragraph, run);
 
                 if (!string.Equals(actualFont, expectedFont, StringComparison.OrdinalIgnoreCase))
                 {
@@ -55,76 +63,20 @@ public class FontFamilyValidationRule : IValidationRule
 
                     commentService?.AddCommentToRun(doc, run, message);
 
-                    errors.Add(new ValidationResult
-                    {
-                        RuleName = Name,
-                        IsError = true,
-                        Message = message,
-                        Location = new DocumentLocation
-                        {
-                            Paragraph = paragraphIndex,
-                            Run = runIndex,
-                            CharacterOffset = characterOffset,
-                            Length = text.Length,
-                            Text = Truncate(text, 50)
-                        }
-                    });
+                    errors.Add(ValidationResultFactory.ForRun(
+                        Name,
+                        config,
+                        message,
+                        paragraphIndex,
+                        runIndex,
+                        characterOffset,
+                        text.Length,
+                        TextExtractionService.Truncate(text, 50),
+                        ParagraphIndexKind.BodyElement));
                 }
             }
 
             characterOffset += text.Length;
         }
-    }
-
-    private static string GetRunText(Run run)
-    {
-        return string.Concat(run.Elements<Text>().Select(t => t.Text));
-    }
-
-    private static string? ResolveEffectiveFont(
-        WordprocessingDocument doc,
-        Paragraph paragraph,
-        Run run)
-    {
-        var runFont = run.RunProperties?.RunFonts?.Ascii;
-        if (!string.IsNullOrEmpty(runFont))
-            return runFont;
-
-        var paraFont = GetParagraphStyleFont(doc, paragraph);
-        if (!string.IsNullOrEmpty(paraFont))
-            return paraFont;
-
-        return GetDefaultFont(doc);
-    }
-
-    private static string? GetParagraphStyleFont(
-        WordprocessingDocument doc,
-        Paragraph paragraph)
-    {
-        var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val;
-        if (styleId == null)
-            return null;
-
-        var styles = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles;
-        var style = styles?.Elements<Style>().FirstOrDefault(s => s.StyleId == styleId);
-
-        return style?.StyleRunProperties?.RunFonts?.Ascii;
-    }
-
-    private static string? GetDefaultFont(WordprocessingDocument doc)
-    {
-        var styles = doc.MainDocumentPart?.StyleDefinitionsPart?.Styles;
-        var defaultStyle = styles?
-            .Elements<Style>()
-            .FirstOrDefault(s => s.Type?.Value == StyleValues.Paragraph && s.Default?.Value == true);
-
-        return defaultStyle?.StyleRunProperties?.RunFonts?.Ascii;
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text[..maxLength] + "...";
     }
 }

@@ -1,10 +1,12 @@
 using System.Text.RegularExpressions;
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Results;
 
 namespace Rules;
 
@@ -25,7 +27,7 @@ public partial class SingleSpaceRule : IValidationRule
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
-            var text = DocumentAnalysisScope.GetParagraphText(paragraph, config);
+            var text = TextExtractionService.GetParagraphText(doc, paragraph, config);
 
             if (string.IsNullOrWhiteSpace(text))
                 continue;
@@ -39,19 +41,17 @@ public partial class SingleSpaceRule : IValidationRule
 
                 var errorMessage = $"Multiple spaces found ({spaceCount} spaces). Only single spaces allowed between words. Context: \"{snippet}\"";
 
-                errors.Add(new ValidationResult
-                {
-                    RuleName = Name,
-                    Message = errorMessage,
-                    IsError = true,
-                    Location = new DocumentLocation
+                errors.Add(ValidationResultFactory.Create(
+                    Name,
+                    config,
+                    errorMessage,
+                    new DocumentLocation
                     {
                         Paragraph = paragraphIndex,
                         CharacterOffset = match.Index,
                         Length = match.Length,
                         Text = snippet
-                    }
-                });
+                    }));
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }

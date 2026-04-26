@@ -1,9 +1,10 @@
 using backend.Models;
-using backend.Services;
 using backend.Tests.Helpers;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using backend.Services.Analysis;
+using backend.Services.Structure;
 
 namespace backend.Tests.Services;
 
@@ -141,7 +142,7 @@ public class SectionContextTests
         foreach (var para in body.Elements<Paragraph>())
         {
             elemIdx++;
-            var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
+            var level = HeadingDetectionService.GetHeadingLevel(doc, para);
             if (level is null) continue;
             var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
             if (string.IsNullOrWhiteSpace(text)) continue;
@@ -152,7 +153,7 @@ public class SectionContextTests
         foreach (var para in body.Descendants<Paragraph>())
         {
             descIdx++;
-            var level = HeadingStyleHelper.GetHeadingLevel(doc, para);
+            var level = HeadingDetectionService.GetHeadingLevel(doc, para);
             if (level is null) continue;
             var text = string.Concat(para.Descendants<Text>().Select(t => t.Text)).Trim();
             if (string.IsNullOrWhiteSpace(text)) continue;

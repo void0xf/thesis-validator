@@ -1,9 +1,15 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
+using backend.Services.Comments;
+using backend.Services.Extraction;
+using backend.Services.Formatting;
+using backend.Services.Results;
+using backend.Services.Skipping;
+using backend.Services.Structure;
 
 namespace Rules;
 
@@ -39,8 +45,8 @@ public class ListConsistencyRule : IValidationRule
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
-            if (HeadingStyleHelper.IsHeading(doc, paragraph)
-                || StylePatternExclusionHelper.HasExcludedStyle(paragraph))
+            if (HeadingDetectionService.IsHeading(doc, paragraph)
+                || SkipDecisionService.HasExcludedStructuralStyle(doc, paragraph))
             {
                 currentList = null;
                 currentNumberingId = null;
@@ -60,7 +66,7 @@ public class ListConsistencyRule : IValidationRule
                 }
 
                 var level = numberingProps?.NumberingLevelReference?.Val?.Value ?? 0;
-                var indent = GetParagraphIndent(paragraph);
+                var indent = FormattingResolutionService.ResolveLeftIndent(paragraph);
 
                 currentList.Items.Add(new ListItem
                 {
@@ -108,7 +114,7 @@ public class ListConsistencyRule : IValidationRule
             foreach (var item in middleItems)
             {
                 var ending = GetTrailingPunctuation(item.Paragraph, config);
-                var text = DocumentAnalysisScope.GetParagraphText(item.Paragraph, config);
+                var text = TextExtractionService.GetParagraphText(doc, item.Paragraph, config);
                 var preview = GetListItemPreview(text);
 
                 if (ending != expectedPunctuation)
@@ -122,17 +128,13 @@ public class ListConsistencyRule : IValidationRule
 
                     var errorMessage = $"List item ends with {actualDesc} but first item uses {expectedDesc}. Text: \"{preview}\"";
 
-                    errors.Add(new ValidationResult
-                    {
-                        RuleName = Name,
-                        Message = errorMessage,
-                        IsError = true,
-                        Location = new DocumentLocation
-                        {
-                            Paragraph = item.ParagraphIndex,
-                            Text = preview
-                        }
-                    });
+                    errors.Add(ValidationResultFactory.ForParagraph(
+                        Name,
+                        config,
+                        errorMessage,
+                        item.ParagraphIndex,
+                        preview,
+                        ParagraphIndexKind.BodyElement));
 
                     documentCommentService?.AddCommentToParagraph(doc, item.Paragraph, errorMessage);
                 }
@@ -141,24 +143,20 @@ public class ListConsistencyRule : IValidationRule
             var lastEnding = GetTrailingPunctuation(lastItem.Paragraph, config);
             if (lastEnding != '.')
             {
-                var lastText = DocumentAnalysisScope.GetParagraphText(lastItem.Paragraph, config);
+                var lastText = TextExtractionService.GetParagraphText(doc, lastItem.Paragraph, config);
                 var lastPreview = GetListItemPreview(lastText);
 
                 var errorMessage = lastEnding.HasValue
                     ? $"Last list item should end with period (.), found '{lastEnding}'. Text: \"{lastPreview}\""
                     : $"Last list item should end with period (.). Text: \"{lastPreview}\"";
 
-                errors.Add(new ValidationResult
-                {
-                    RuleName = Name,
-                    Message = errorMessage,
-                    IsError = true,
-                    Location = new DocumentLocation
-                    {
-                        Paragraph = lastItem.ParagraphIndex,
-                        Text = lastPreview
-                    }
-                });
+                errors.Add(ValidationResultFactory.ForParagraph(
+                    Name,
+                    config,
+                    errorMessage,
+                    lastItem.ParagraphIndex,
+                    lastPreview,
+                    ParagraphIndexKind.BodyElement));
 
                 documentCommentService?.AddCommentToParagraph(doc, lastItem.Paragraph, errorMessage);
             }
@@ -195,26 +193,22 @@ public class ListConsistencyRule : IValidationRule
 
             foreach (var item in items.Where(i => i.IndentLeft != expectedIndent))
             {
-                var text = DocumentAnalysisScope.GetParagraphText(item.Paragraph, config);
-                var preview = Truncate(text, 40);
+                var text = TextExtractionService.GetParagraphText(doc, item.Paragraph, config);
+                var preview = TextExtractionService.Truncate(text, 40);
 
-                var expectedCm = TwipsToCm(expectedIndent);
-                var actualCm = TwipsToCm(item.IndentLeft);
+                var expectedCm = UnitConversion.TwipsToCentimeters(expectedIndent);
+                var actualCm = UnitConversion.TwipsToCentimeters(item.IndentLeft);
 
                 var errorMessage = $"List item has inconsistent indentation ({actualCm:F2} cm). " +
                                    $"Expected {expectedCm:F2} cm at level {item.Level}. Text: \"{preview}\"";
 
-                errors.Add(new ValidationResult
-                {
-                    RuleName = Name,
-                    Message = errorMessage,
-                    IsError = true,
-                    Location = new DocumentLocation
-                    {
-                        Paragraph = item.ParagraphIndex,
-                        Text = preview
-                    }
-                });
+                errors.Add(ValidationResultFactory.ForParagraph(
+                    Name,
+                    config,
+                    errorMessage,
+                    item.ParagraphIndex,
+                    preview,
+                    ParagraphIndexKind.BodyElement));
 
                 documentCommentService?.AddCommentToParagraph(doc, item.Paragraph, errorMessage);
             }
@@ -223,22 +217,9 @@ public class ListConsistencyRule : IValidationRule
         return errors;
     }
 
-    private static int GetParagraphIndent(Paragraph paragraph)
-    {
-        var indent = paragraph.ParagraphProperties?.Indentation;
-        if (indent == null)
-            return 0;
-
-        var leftValue = indent.Left?.Value ?? indent.Start?.Value;
-        if (leftValue != null && int.TryParse(leftValue, out var left))
-            return left;
-
-        return 0;
-    }
-
     private static char? GetTrailingPunctuation(Paragraph paragraph, UniversityConfig config)
     {
-        var text = DocumentAnalysisScope.GetParagraphText(paragraph, config).TrimEnd();
+        var text = TextExtractionService.GetParagraphText(paragraph, config).TrimEnd();
         if (string.IsNullOrEmpty(text))
             return null;
 
@@ -246,24 +227,11 @@ public class ListConsistencyRule : IValidationRule
         return char.IsPunctuation(lastChar) ? lastChar : null;
     }
 
-    private static double TwipsToCm(int twips)
-    {
-        // 1 inch = 1440 twips, 1 inch = 2.54 cm
-        return twips / 1440.0 * 2.54;
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text[..maxLength] + "...";
-    }
-
     private static string GetListItemPreview(string text)
     {
         return string.IsNullOrWhiteSpace(text)
             ? "[empty]"
-            : Truncate(text, 40);
+            : TextExtractionService.Truncate(text, 40);
     }
 
     private class ListGroup

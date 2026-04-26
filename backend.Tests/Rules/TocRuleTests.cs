@@ -1,11 +1,11 @@
 using backend.Models;
-using backend.Services;
 using Backend.Models;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Rules;
 using ThesisValidator.Rules;
+using backend.Services.Analysis;
 
 namespace backend.Tests.Rules;
 
