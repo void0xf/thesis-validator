@@ -66,6 +66,55 @@ public class ParagraphSpacingRuleTests
         return new InMemoryDocx(doc, stream);
     }
 
+    private static InMemoryDocx CreateDocxWithInheritedStyleSpacing(string styleId, int spacingAfterTwips)
+    {
+        var stream = new MemoryStream();
+        var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
+
+        var mainPart = doc.AddMainDocumentPart();
+        var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+        stylesPart.Styles = new Styles(
+            new Style(
+                new StyleParagraphProperties(
+                    new SpacingBetweenLines { After = spacingAfterTwips.ToString() }))
+            {
+                Type = StyleValues.Paragraph,
+                StyleId = styleId
+            });
+
+        mainPart.Document = new Document(new Body(
+            new Paragraph(
+                new ParagraphProperties(new ParagraphStyleId { Val = styleId }),
+                new Run(new Text("Styled paragraph")))));
+
+        mainPart.Document.Save();
+        return new InMemoryDocx(doc, stream);
+    }
+
+    private static InMemoryDocx CreateDocxWithDefaultStyleSpacing(int spacingAfterTwips)
+    {
+        var stream = new MemoryStream();
+        var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
+
+        var mainPart = doc.AddMainDocumentPart();
+        var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+        stylesPart.Styles = new Styles(
+            new Style(
+                new StyleParagraphProperties(
+                    new SpacingBetweenLines { After = spacingAfterTwips.ToString() }))
+            {
+                Type = StyleValues.Paragraph,
+                Default = true,
+                StyleId = "Normal"
+            });
+
+        mainPart.Document = new Document(new Body(
+            new Paragraph(new Run(new Text("Default styled paragraph")))));
+
+        mainPart.Document.Save();
+        return new InMemoryDocx(doc, stream);
+    }
+
     [Fact]
     public void Validate_ParagraphWithCorrectSpacing0pt_ReturnsNoErrors()
     {
@@ -92,6 +141,30 @@ public class ParagraphSpacingRuleTests
     public void Validate_ParagraphWithWrongSpacing_ReturnsError()
     {
         using var docx = CreateDocxWithSpacing(200);
+        var config = CreateConfig(0, 6);
+
+        var errors = _rule.Validate(docx.Document, config, null).ToList();
+
+        Assert.Single(errors);
+        Assert.Contains("10", errors[0].Message);
+    }
+
+    [Fact]
+    public void Validate_ParagraphWithWrongInheritedStyleSpacing_ReturnsError()
+    {
+        using var docx = CreateDocxWithInheritedStyleSpacing("BodyText", 200);
+        var config = CreateConfig(0, 6);
+
+        var errors = _rule.Validate(docx.Document, config, null).ToList();
+
+        Assert.Single(errors);
+        Assert.Contains("10", errors[0].Message);
+    }
+
+    [Fact]
+    public void Validate_ParagraphWithWrongDefaultStyleSpacing_ReturnsError()
+    {
+        using var docx = CreateDocxWithDefaultStyleSpacing(200);
         var config = CreateConfig(0, 6);
 
         var errors = _rule.Validate(docx.Document, config, null).ToList();
