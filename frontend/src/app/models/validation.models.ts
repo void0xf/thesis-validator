@@ -89,11 +89,6 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that headings and titles do not end with periods',
     category: 'formatting'
   },
-  'HangingConjunctionRule': {
-    displayName: 'Hanging Conjunctions',
-    description: 'Single-letter conjunctions (a, i, o, u, w, z) must use a non-breaking space',
-    category: 'formatting'
-  },
   'ListConsistencyRule': {
     displayName: 'List Consistency',
     description: 'Validates consistent punctuation and indentation in lists',
@@ -104,7 +99,7 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Verifies paragraph spacing matches requirements (0pt or 6pt)',
     category: 'layout'
   },
-  'ParagraphIndentRule': {
+  'RequiredIndentCm': {
     displayName: 'Paragraph Indent',
     description: 'Checks first-line indentation (1.00cm or 1.25cm)',
     category: 'layout'
