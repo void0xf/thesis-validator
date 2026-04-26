@@ -109,9 +109,7 @@ public class ListConsistencyRule : IValidationRule
             {
                 var ending = GetTrailingPunctuation(item.Paragraph, config);
                 var text = DocumentAnalysisScope.GetParagraphText(item.Paragraph, config);
-                var preview = Truncate(text, 40);
-                if(string.IsNullOrEmpty(preview) || string.IsNullOrWhiteSpace(preview))
-                    continue;
+                var preview = GetListItemPreview(text);
 
                 if (ending != expectedPunctuation)
                 {
@@ -144,9 +142,7 @@ public class ListConsistencyRule : IValidationRule
             if (lastEnding != '.')
             {
                 var lastText = DocumentAnalysisScope.GetParagraphText(lastItem.Paragraph, config);
-                if(string.IsNullOrEmpty(lastText) || string.IsNullOrWhiteSpace(lastText))
-                    continue;
-                var lastPreview = Truncate(lastText, 40);
+                var lastPreview = GetListItemPreview(lastText);
 
                 var errorMessage = lastEnding.HasValue
                     ? $"Last list item should end with period (.), found '{lastEnding}'. Text: \"{lastPreview}\""
@@ -261,6 +257,13 @@ public class ListConsistencyRule : IValidationRule
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
             return text;
         return text[..maxLength] + "...";
+    }
+
+    private static string GetListItemPreview(string text)
+    {
+        return string.IsNullOrWhiteSpace(text)
+            ? "[empty]"
+            : Truncate(text, 40);
     }
 
     private class ListGroup
