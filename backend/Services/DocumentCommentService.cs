@@ -10,21 +10,14 @@ namespace backend.Services;
 public class DocumentCommentService
 {
     private int _commentIdCounter = 0;
-    private readonly Dictionary<int, (string Author, string Text)> _pendingComments = new();
 
     /// <summary>
     /// Add a comment to a specific run in the document.
     /// </summary>
     public void AddCommentToRun(WordprocessingDocument doc, Run run, string commentText, string author = "Thesis Validator")
     {
-        var commentId = _commentIdCounter++;
-
-        var commentsPart = doc.MainDocumentPart!.WordprocessingCommentsPart;
-        if (commentsPart == null)
-        {
-            commentsPart = doc.MainDocumentPart.AddNewPart<WordprocessingCommentsPart>();
-            commentsPart.Comments = new Comments();
-        }
+        var commentsPart = GetOrCreateCommentsPart(doc);
+        var commentId = GetNextCommentId(commentsPart);
 
         var comment = new Comment
         {
@@ -64,14 +57,8 @@ public class DocumentCommentService
             return;
         }
 
-        var commentId = _commentIdCounter++;
-
-        var commentsPart = doc.MainDocumentPart!.WordprocessingCommentsPart;
-        if (commentsPart == null)
-        {
-            commentsPart = doc.MainDocumentPart.AddNewPart<WordprocessingCommentsPart>();
-            commentsPart.Comments = new Comments();
-        }
+        var commentsPart = GetOrCreateCommentsPart(doc);
+        var commentId = GetNextCommentId(commentsPart);
 
         var comment = new Comment
         {
@@ -147,6 +134,30 @@ public class DocumentCommentService
     private static string GetRunText(Run run)
     {
         return string.Concat(run.Elements<Text>().Select(t => t.Text));
+    }
+
+    private static WordprocessingCommentsPart GetOrCreateCommentsPart(WordprocessingDocument doc)
+    {
+        var commentsPart = doc.MainDocumentPart!.WordprocessingCommentsPart;
+        if (commentsPart is null)
+        {
+            commentsPart = doc.MainDocumentPart.AddNewPart<WordprocessingCommentsPart>();
+        }
+
+        commentsPart.Comments ??= new Comments();
+        return commentsPart;
+    }
+
+    private int GetNextCommentId(WordprocessingCommentsPart commentsPart)
+    {
+        var maxExistingId = commentsPart.Comments?
+            .Elements<Comment>()
+            .Select(comment => int.TryParse(comment.Id?.Value, out var id) ? id : -1)
+            .DefaultIfEmpty(-1)
+            .Max() ?? -1;
+
+        _commentIdCounter = Math.Max(_commentIdCounter, maxExistingId + 1);
+        return _commentIdCounter++;
     }
 
     private static string GetInitials(string author)
