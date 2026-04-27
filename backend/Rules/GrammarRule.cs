@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Language;
@@ -17,10 +18,14 @@ namespace backend.Rules;
 public class GrammarRule : IValidationRule
 {
     private readonly LanguageToolService _languageToolService;
+    private readonly ICodeBlockDetector _codeBlockDetector;
 
-    public GrammarRule(LanguageToolService languageToolService)
+    public GrammarRule(
+        LanguageToolService languageToolService,
+        ICodeBlockDetector? codeBlockDetector = null)
     {
         _languageToolService = languageToolService;
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
     }
 
     public string Name => "Grammar";
@@ -32,11 +37,6 @@ public class GrammarRule : IValidationRule
 
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? commentService)
     {
-        if (!config.CheckGrammar)
-        {
-            return Enumerable.Empty<ValidationResult>();
-        }
-
         return ValidateAsync(doc, config, commentService).GetAwaiter().GetResult();
     }
 
@@ -62,6 +62,9 @@ public class GrammarRule : IValidationRule
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
+                continue;
+
             var paragraphText = TextExtractionService.GetParagraphText(doc, paragraph, config);
             if (string.IsNullOrWhiteSpace(paragraphText))
                 continue;
