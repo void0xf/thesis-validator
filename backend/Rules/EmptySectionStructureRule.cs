@@ -1,8 +1,10 @@
 using backend.Models;
 using Backend.Models;
+using backend.RuleOptions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.Comments;
@@ -21,13 +23,25 @@ namespace backend.Rules;
 /// </summary>
 public class EmptySectionStructureRule : IValidationRule
 {
-    public string Name => "EmptySectionStructureRule";
+    public const string RuleId = nameof(EmptySectionStructureRule);
+
+    private readonly EmptySectionStructureRuleOptions _options;
+
+    public EmptySectionStructureRule(IOptions<EmptySectionStructureRuleOptions>? options = null)
+    {
+        _options = options?.Value ?? new EmptySectionStructureRuleOptions();
+    }
+
+    public string Name => RuleId;
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
         UniversityConfig config,
         DocumentCommentService? commentService = null)
     {
+        if (_options.Availability == RuleAvailability.Hidden)
+            return [];
+
         var errors = new List<ValidationResult>();
         var body = doc.MainDocumentPart?.Document.Body;
         if (body is null) return errors;
@@ -86,13 +100,15 @@ public class EmptySectionStructureRule : IValidationRule
                         "with no introductory text. Add at least one paragraph of body text " +
                         "before the first sub-section.";
 
-                    errors.Add(ValidationResultFactory.ForParagraph(
+                    var result = ValidationResultFactory.ForParagraph(
                         Name,
                         config,
                         msg,
                         lastHeadingParaIdx,
                         lastHeadingPreview,
-                        ParagraphIndexKind.BodyElement));
+                        ParagraphIndexKind.BodyElement);
+                    result.Severity = _options.Severity.ToString();
+                    errors.Add(result);
 
                     if (lastHeadingParagraph is not null)
                         commentService?.AddCommentToParagraph(doc, lastHeadingParagraph, msg);
