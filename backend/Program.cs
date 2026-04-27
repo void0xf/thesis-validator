@@ -2,6 +2,7 @@ using System.Reflection;
 using backend.Endpoints;
 using backend.Models;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Language;
 using Backend.Models;
 using ThesisValidator.Rules;
@@ -23,6 +24,19 @@ builder.Services.AddCors(options =>
 
 builder.Services.Configure<UniversityConfig>(
     builder.Configuration.GetSection("UniversityConfig"));
+
+builder.Services.AddOptions<CodeBlockDetectionOptions>()
+    .Bind(builder.Configuration.GetSection(CodeBlockDetectionOptions.SectionName))
+    .Validate(
+        options => options.MinimumCodeFontTextRatio > 0 && options.MinimumCodeFontTextRatio <= 1,
+        "CodeBlockDetection:MinimumCodeFontTextRatio must be greater than 0 and less than or equal to 1.")
+    .Validate(
+        options => options.CodeFonts is not null
+            && options.CodeFonts.Any(font => !string.IsNullOrWhiteSpace(font)),
+        "CodeBlockDetection:CodeFonts must contain at least one font.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
 
 builder.Services.AddHttpClient<LanguageToolService>();
 builder.Services.AddScoped<LanguageToolService>();
