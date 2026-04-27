@@ -3,7 +3,6 @@ using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
-using backend.Services.Analysis;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
@@ -13,7 +12,7 @@ using backend.Services.Structure;
 namespace backend.Rules;
 
 /// <summary>
-/// Validates that every figure is immediately followed by a caption with expected caption formatting.
+/// Validates the Word style and paragraph formatting of existing figure captions.
 /// </summary>
 public class FigureCaptionStyleRule : IValidationRule
 {
@@ -28,33 +27,15 @@ public class FigureCaptionStyleRule : IValidationRule
         DocumentCommentService? commentService = null)
     {
         var errors = new List<ValidationResult>();
-        var paragraphs = DocumentAnalysisScope.BodyParagraphs(doc, config).ToList();
 
-        for (int i = 0; i < paragraphs.Count; i++)
+        foreach (var captionCandidate in FigureCaptionDetector.GetDetectedFigureCaptions(doc, config))
         {
-            var (figureParagraph, figureIdx) = paragraphs[i];
-            if (!FigureDetectionService.ContainsImage(figureParagraph, config))
-                continue;
-
-            if (i + 1 >= paragraphs.Count)
+            var caption = captionCandidate.Paragraph;
+            var captionIdx = captionCandidate.ParagraphIndex;
+            var preview = TextExtractionService.Truncate(captionCandidate.Text, 50);
+            if (!CaptionDetectionService.UsesDedicatedCaptionStyle(doc, caption))
             {
-                AddMissingCaption(doc, config, errors, figureParagraph, figureIdx, commentService);
-                continue;
-            }
-
-            var (caption, captionIdx) = paragraphs[i + 1];
-            var captionText = TextExtractionService.GetParagraphText(doc, caption, config).Trim();
-
-            if (string.IsNullOrWhiteSpace(captionText))
-            {
-                AddMissingCaption(doc, config, errors, figureParagraph, figureIdx, commentService);
-                continue;
-            }
-
-            var preview = TextExtractionService.Truncate(captionText, 50);
-            if (!CaptionDetectionService.UsesDedicatedCaptionStyle(caption))
-            {
-                var label = CaptionDetectionService.GetCaptionStyleLabel(caption);
+                var label = CaptionDetectionService.GetCaptionStyleLabel(doc, caption);
                 var msg = $"Figure caption uses \"{label}\" style - assign a Caption style (e.g., \"Caption\", \"Legenda\").";
                 errors.Add(MakeResult(config, msg, captionIdx, preview));
                 commentService?.AddCommentToParagraph(doc, caption, msg);
@@ -66,19 +47,6 @@ public class FigureCaptionStyleRule : IValidationRule
         }
 
         return errors;
-    }
-
-    private void AddMissingCaption(
-        WordprocessingDocument doc,
-        UniversityConfig config,
-        List<ValidationResult> errors,
-        Paragraph imageParagraph,
-        int paragraphIndex,
-        DocumentCommentService? commentService)
-    {
-        var msg = "Figure has no caption - add a caption paragraph with text immediately after the image.";
-        errors.Add(MakeResult(config, msg, paragraphIndex, "[Image]"));
-        commentService?.AddCommentToParagraph(doc, imageParagraph, msg);
     }
 
     private void CheckFontSize(
@@ -169,6 +137,6 @@ public class FigureCaptionStyleRule : IValidationRule
             message,
             paragraph,
             text,
-            ParagraphIndexKind.BodyElement);
+            ParagraphIndexKind.Descendant);
     }
 }
