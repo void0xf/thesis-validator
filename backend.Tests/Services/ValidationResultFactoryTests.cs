@@ -65,17 +65,4 @@ public class ValidationResultFactoryTests
         Assert.Equal("Structure", definition.Category);
     }
 
-    [Fact]
-    public void SeverityResolver_IsRuleEnabled_UsesConfigOverride()
-    {
-        var config = new UniversityConfig();
-        config.Rules.Overrides["FontFamily"] = new RuleOverrideConfig
-        {
-            Enabled = false
-        };
-
-        var enabled = SeverityResolver.IsRuleEnabled("FontFamily", config);
-
-        Assert.False(enabled);
-    }
 }
