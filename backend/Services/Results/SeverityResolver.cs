@@ -20,10 +20,4 @@ public static class SeverityResolver
 
         return ValidationSeverity.Normalize(RuleCatalog.GetDefinition(ruleId).DefaultSeverity);
     }
-
-    public static bool IsRuleEnabled(string ruleId, UniversityConfig config)
-    {
-        return config.Rules.GetOverride(ruleId)?.Enabled
-            ?? RuleCatalog.GetDefinition(ruleId).Enabled;
-    }
 }
