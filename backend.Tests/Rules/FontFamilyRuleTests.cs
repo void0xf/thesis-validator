@@ -111,6 +111,22 @@ public class FontFamilyRuleTests
     }
 
     [Fact]
+    public void Validate_CodeBlockParagraph_IsSkipped()
+    {
+        // Arrange
+        using var docx = DocxTestHelper.CreateInMemoryDocx(
+            ("public void ValidateDocument() { return; }", "Consolas")
+        );
+        var config = CreateConfig("Times New Roman");
+
+        // Act
+        var errors = _rule.Validate(docx.Document, config).ToList();
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Fact]
     public void Validate_EmptyParagraph_IsSkipped()
     {
         // Arrange

@@ -1,5 +1,6 @@
 using backend.Models;
 using backend.Rules;
+using backend.Services.CodeBlocks;
 using backend.Tests.Helpers;
 using Backend.Models;
 using Microsoft.Extensions.Configuration;
@@ -13,16 +14,22 @@ namespace backend.Tests.Rules;
 
 public class GrammarRuleTests
 {
-    private static UniversityConfig CreateConfig(bool checkGrammar = true, string language = "en-US")
+    private static UniversityConfig CreateConfig(string language = "en-US")
     {
         return new UniversityConfig
         {
-            CheckGrammar = checkGrammar,
             Language = language
         };
     }
 
     private static LanguageToolService CreateMockLanguageToolService(
+        LanguageToolResponse? response = null,
+        bool isAvailable = true)
+    {
+        return CreateMockLanguageToolServiceWithHandler(response, isAvailable).Service;
+    }
+
+    private static (LanguageToolService Service, Mock<HttpMessageHandler> HandlerMock) CreateMockLanguageToolServiceWithHandler(
         LanguageToolResponse? response = null,
         bool isAvailable = true)
     {
@@ -63,25 +70,7 @@ public class GrammarRuleTests
             })
             .Build();
 
-        return new LanguageToolService(httpClient, configuration);
-    }
-
-    [Fact]
-    public void Validate_GrammarCheckDisabled_ReturnsNoErrors()
-    {
-        // Arrange
-        var service = CreateMockLanguageToolService();
-        var rule = new GrammarRule(service);
-        using var docx = DocxTestHelper.CreateInMemoryDocx(
-            ("This sentence has an error.", "Times New Roman")
-        );
-        var config = CreateConfig(checkGrammar: false);
-
-        // Act
-        var errors = rule.Validate(docx.Document, config).ToList();
-
-        // Assert
-        Assert.Empty(errors);
+        return (new LanguageToolService(httpClient, configuration), handlerMock);
     }
 
     [Fact]
@@ -103,6 +92,52 @@ public class GrammarRuleTests
 
         // Assert
         Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Validate_CodeBlockParagraph_DoesNotSendTextToLanguageTool()
+    {
+        // Arrange
+        var (service, handlerMock) = CreateMockLanguageToolServiceWithHandler();
+        var rule = new GrammarRule(service, CodeBlockDetector.CreateDefault());
+        using var docx = DocxTestHelper.CreateInMemoryDocx(
+            ("public async Task<IActionResult> ValidateDocument() { return Ok(); }", "Consolas")
+        );
+        var config = CreateConfig();
+
+        // Act
+        var errors = rule.Validate(docx.Document, config).ToList();
+
+        // Assert
+        Assert.Empty(errors);
+        handlerMock.Protected().Verify<Task<HttpResponseMessage>>(
+            "SendAsync",
+            Times.Never(),
+            ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.PathAndQuery.Contains("/v2/check")),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    [Fact]
+    public void Validate_NormalProseParagraph_SendsTextToLanguageTool()
+    {
+        // Arrange
+        var (service, handlerMock) = CreateMockLanguageToolServiceWithHandler();
+        var rule = new GrammarRule(service, CodeBlockDetector.CreateDefault());
+        using var docx = DocxTestHelper.CreateInMemoryDocx(
+            ("This sentence is correct.", "Times New Roman")
+        );
+        var config = CreateConfig();
+
+        // Act
+        var errors = rule.Validate(docx.Document, config).ToList();
+
+        // Assert
+        Assert.Empty(errors);
+        handlerMock.Protected().Verify<Task<HttpResponseMessage>>(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.PathAndQuery.Contains("/v2/check")),
+            ItExpr.IsAny<CancellationToken>());
     }
 
     [Fact]
