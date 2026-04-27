@@ -38,6 +38,13 @@ builder.Services.AddOptions<CodeBlockDetectionOptions>()
         "CodeBlockDetection:CodeFonts must contain at least one font.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<NoDotsInTitlesRuleOptions>()
+    .Bind(builder.Configuration.GetSection(NoDotsInTitlesRuleOptions.SectionName))
+    .Validate(options => options.TargetStylePatterns is not null
+            && options.TargetStylePatterns.Any(pattern => !string.IsNullOrWhiteSpace(pattern)),
+        "NoDotsInTitlesRule:TargetStylePatterns must contain at least one non-empty style pattern.")
+    .ValidateOnStart();
+
 builder.Services.AddOptions<EmptySectionStructureRuleOptions>()
     .Bind(builder.Configuration.GetSection(EmptySectionStructureRuleOptions.SectionName))
     .ValidateOnStart();
@@ -64,6 +71,32 @@ builder.Services.AddOptions<LineSpacingDependencyRuleOptions>()
     .Bind(builder.Configuration.GetSection(LineSpacingDependencyRuleOptions.SectionName))
     .Validate(options => options.TargetLineSpacingTwips > 0,
         "LineSpacingDependencyRule:TargetLineSpacingTwips must be greater than 0.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ParagraphIndentRuleOptions>()
+    .Bind(builder.Configuration.GetSection(ParagraphIndentRuleOptions.SectionName))
+    .Validate(options => options.AllowedIndentTwips is not null
+            && options.AllowedIndentTwips.Length > 0
+            && options.AllowedIndentTwips.All(indent => indent >= 0),
+        "RequiredIndentCm:AllowedIndentTwips must contain only non-negative values and at least one value.")
+    .Validate(options => options.ToleranceTwips >= 0,
+        "RequiredIndentCm:ToleranceTwips must be greater than or equal to 0.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<SingleSpaceRuleOptions>()
+    .Bind(builder.Configuration.GetSection(SingleSpaceRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<TextJustificationRuleOptions>()
+    .Bind(builder.Configuration.GetSection(TextJustificationRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<TocRuleOptions>()
+    .Bind(builder.Configuration.GetSection(TocRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ManualTableOfContentsRuleOptions>()
+    .Bind(builder.Configuration.GetSection(ManualTableOfContentsRuleOptions.SectionName))
     .ValidateOnStart();
 
 builder.Services.AddOptions<MissingFigureCaptionRuleOptions>()
