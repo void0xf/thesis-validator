@@ -1,13 +1,16 @@
 using System.Text.RegularExpressions;
 using backend.Models;
+using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Results;
+using backend.Services.Rules;
 
 namespace Rules;
 
@@ -17,13 +20,25 @@ namespace Rules;
 /// </summary>
 public partial class SingleSpaceRule : IValidationRule
 {
+    public const string RuleId = nameof(SingleSpaceRule);
+
     private readonly ICodeBlockDetector _codeBlockDetector;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
 
-    public string Name => "SingleSpaceRule";
+    public string Name => RuleId;
 
-    public SingleSpaceRule(ICodeBlockDetector? codeBlockDetector = null)
+    public SingleSpaceRule(
+        ICodeBlockDetector? codeBlockDetector = null,
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<SingleSpaceRuleOptions>? options = null)
     {
+        var singleSpaceOptions = options ?? Options.Create(new SingleSpaceRuleOptions());
+
         _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                singleSpaceOptions: singleSpaceOptions);
     }
 
     // Regex to find 2 or more consecutive spaces
@@ -32,6 +47,9 @@ public partial class SingleSpaceRule : IValidationRule
 
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
@@ -52,7 +70,7 @@ public partial class SingleSpaceRule : IValidationRule
 
                 var errorMessage = $"Multiple spaces found ({spaceCount} spaces). Only single spaces allowed between words. Context: \"{snippet}\"";
 
-                errors.Add(ValidationResultFactory.Create(
+                var result = ValidationResultFactory.Create(
                     Name,
                     config,
                     errorMessage,
@@ -62,7 +80,9 @@ public partial class SingleSpaceRule : IValidationRule
                         CharacterOffset = match.Index,
                         Length = match.Length,
                         Text = snippet
-                    }));
+                    });
+                result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+                errors.Add(result);
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }

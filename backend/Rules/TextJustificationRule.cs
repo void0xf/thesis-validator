@@ -1,7 +1,9 @@
 using backend.Models;
+using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.CodeBlocks;
@@ -9,6 +11,7 @@ using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
 using backend.Services.Results;
+using backend.Services.Rules;
 using backend.Services.Skipping;
 
 namespace Rules;
@@ -19,13 +22,25 @@ namespace Rules;
 /// </summary>
 public class TextJustificationRule : IValidationRule
 {
+    public const string RuleId = nameof(TextJustificationRule);
+
     private readonly ICodeBlockDetector _codeBlockDetector;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
 
-    public string Name => "TextJustificationRule";
+    public string Name => RuleId;
 
-    public TextJustificationRule(ICodeBlockDetector? codeBlockDetector = null)
+    public TextJustificationRule(
+        ICodeBlockDetector? codeBlockDetector = null,
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<TextJustificationRuleOptions>? options = null)
     {
+        var textJustificationOptions = options ?? Options.Create(new TextJustificationRuleOptions());
+
         _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                textJustificationOptions: textJustificationOptions);
     }
 
     public IEnumerable<ValidationResult> Validate(
@@ -33,6 +48,9 @@ public class TextJustificationRule : IValidationRule
         UniversityConfig config,
         DocumentCommentService? documentCommentService)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
@@ -57,12 +75,14 @@ public class TextJustificationRule : IValidationRule
                 var preview = TextExtractionService.Truncate(text, 50);
                 var errorMessage = $"Paragraph is {alignmentName} aligned. Standard text must use full justification (both margins).";
 
-                errors.Add(ValidationResultFactory.ForParagraph(
+                var result = ValidationResultFactory.ForParagraph(
                     Name,
                     config,
                     errorMessage,
                     paragraphIndex,
-                    preview));
+                    preview);
+                result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+                errors.Add(result);
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }
