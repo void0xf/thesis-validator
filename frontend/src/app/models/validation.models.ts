@@ -125,9 +125,29 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that heading levels do not exceed 3 levels deep',
     category: 'structure'
   },
+  'MissingFigureCaptionRule': {
+    displayName: 'Missing Figure Captions',
+    description: 'Checks that figure-like objects have captions',
+    category: 'structure'
+  },
+  'FigureCaptionPositionRule': {
+    displayName: 'Figure Caption Position',
+    description: 'Checks that figure captions are placed below figures',
+    category: 'structure'
+  },
   'FigureCaptionStyleRule': {
-    displayName: 'Figure Captions',
-    description: 'Validates that every figure has a properly styled caption (11pt, centered, no indent)',
+    displayName: 'Figure Caption Style',
+    description: 'Checks figure caption style and paragraph formatting',
+    category: 'structure'
+  },
+  'FigureCaptionFormatRule': {
+    displayName: 'Figure Caption Format',
+    description: 'Checks visible figure caption labels, numbers, and descriptions',
+    category: 'structure'
+  },
+  'FigureCaptionAutomaticNumberingRule': {
+    displayName: 'Figure Caption Automatic Numbering',
+    description: 'Warns when figure caption numbering appears to be typed manually',
     category: 'structure'
   },
   'CheckTableOfContents': {
