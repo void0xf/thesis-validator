@@ -23,6 +23,18 @@ public class TocRuleTests
         Assert.Empty(results);
     }
 
+    [Fact]
+    public void ManualRule_WhenAutomaticTocExists_ReturnsNoIssue()
+    {
+        using var docx = CreateDocxWithAutomaticToc();
+
+        var results = new ManualTableOfContentsRule()
+            .Validate(docx.Document, new UniversityConfig())
+            .ToList();
+
+        Assert.Empty(results);
+    }
+
     [Theory]
     [InlineData("Spis tre\u015bci")]
     [InlineData("Spis tresci")]
@@ -35,13 +47,48 @@ public class TocRuleTests
     {
         using var docx = CreateDocx(heading, "Chapter 1");
 
-        var result = Assert.Single(new TocRule().Validate(docx.Document, new UniversityConfig()));
+        var result = Assert.Single(new ManualTableOfContentsRule().Validate(docx.Document, new UniversityConfig()));
 
         Assert.False(result.IsError);
-        Assert.Equal(TocRule.ManualTableOfContentsRuleName, result.RuleName);
+        Assert.Equal(ManualTableOfContentsRule.RuleId, result.RuleName);
         Assert.Equal("Structure", result.Category);
         Assert.Equal(1, result.Location.Paragraph);
         Assert.Contains("no automatic Word TOC field", result.Message);
+    }
+
+    [Fact]
+    public void TocRule_WhenManualTocHeadingExists_ReturnsMissingAutomaticTocError()
+    {
+        using var docx = CreateDocx("Spis tresci", "Chapter 1");
+
+        var result = Assert.Single(new TocRule().Validate(docx.Document, new UniversityConfig()));
+
+        Assert.True(result.IsError);
+        Assert.Equal(nameof(FormattingConfig.CheckTableOfContents), result.RuleName);
+        Assert.Equal("Document is missing an automatic Word Table of Contents.", result.Message);
+    }
+
+    [Fact]
+    public void Validate_WhenManualTocHeadingExistsAndBothRulesRun_ReturnsTwoIssues()
+    {
+        using var stream = CreateDocxStream("Spis tresci", "Chapter 1");
+
+        var service = new ThesisValidatorService(new IValidationRule[]
+        {
+            new TocRule(),
+            new ManualTableOfContentsRule()
+        });
+
+        var results = service.Validate(
+                stream,
+                new UniversityConfig(),
+                [TocRule.RuleId, ManualTableOfContentsRule.RuleId])
+            .Results
+            .ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, result => result.RuleName == TocRule.RuleId);
+        Assert.Contains(results, result => result.RuleName == ManualTableOfContentsRule.RuleId);
     }
 
     [Fact]
@@ -53,7 +100,7 @@ public class TocRuleTests
 
         Assert.True(result.IsError);
         Assert.Equal(nameof(FormattingConfig.CheckTableOfContents), result.RuleName);
-        Assert.Equal("Document is missing a Table of Contents.", result.Message);
+        Assert.Equal("Document is missing an automatic Word Table of Contents.", result.Message);
     }
 
     [Fact]
