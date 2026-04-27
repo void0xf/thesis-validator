@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
@@ -15,9 +16,16 @@ namespace backend.Rules;
 
 public class ParagraphIndentRule : IValidationRule
 {
+    private readonly ICodeBlockDetector _codeBlockDetector;
+
     public string Name => nameof(LayoutConfig.RequiredIndentCm);
 
     private const int ToleranceTwips = 60;
+
+    public ParagraphIndentRule(ICodeBlockDetector? codeBlockDetector = null)
+    {
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+    }
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
@@ -33,6 +41,9 @@ public class ParagraphIndentRule : IValidationRule
                 continue;
 
             if (SkipDecisionService.HasExcludedStructuralStyle(doc, paragraph))
+                continue;
+
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
                 continue;
 
             if (!TextExtractionService.HasMeaningfulParagraphContent(paragraph, config))

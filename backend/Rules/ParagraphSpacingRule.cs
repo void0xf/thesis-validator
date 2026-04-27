@@ -3,6 +3,7 @@ using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
@@ -14,7 +15,14 @@ namespace Rules;
 
 public class ParagraphSpacingRule : IValidationRule
 {
+    private readonly ICodeBlockDetector _codeBlockDetector;
+
     public string Name => nameof(LayoutConfig.ParagraphSpacingRule);
+
+    public ParagraphSpacingRule(ICodeBlockDetector? codeBlockDetector = null)
+    {
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+    }
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
@@ -32,6 +40,9 @@ public class ParagraphSpacingRule : IValidationRule
                 continue;
 
             if (SkipDecisionService.HasExcludedStructuralStyle(paragraph))
+                continue;
+
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
                 continue;
 
             var spacingAfter = FormattingResolutionService.ResolveSpacingAfter(doc, paragraph);
