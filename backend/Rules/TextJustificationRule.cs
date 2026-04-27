@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
@@ -18,7 +19,14 @@ namespace Rules;
 /// </summary>
 public class TextJustificationRule : IValidationRule
 {
+    private readonly ICodeBlockDetector _codeBlockDetector;
+
     public string Name => "TextJustificationRule";
+
+    public TextJustificationRule(ICodeBlockDetector? codeBlockDetector = null)
+    {
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+    }
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
@@ -36,6 +44,9 @@ public class TextJustificationRule : IValidationRule
                 continue;
 
             if (SkipDecisionService.HasExcludedStructuralStyle(paragraph))
+                continue;
+
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
                 continue;
 
             var justification = FormattingResolutionService.ResolveJustification(doc, paragraph);

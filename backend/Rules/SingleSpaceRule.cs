@@ -4,6 +4,7 @@ using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Results;
@@ -16,7 +17,14 @@ namespace Rules;
 /// </summary>
 public partial class SingleSpaceRule : IValidationRule
 {
+    private readonly ICodeBlockDetector _codeBlockDetector;
+
     public string Name => "SingleSpaceRule";
+
+    public SingleSpaceRule(ICodeBlockDetector? codeBlockDetector = null)
+    {
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+    }
 
     // Regex to find 2 or more consecutive spaces
     [GeneratedRegex(@"  +", RegexOptions.Compiled)]
@@ -27,6 +35,9 @@ public partial class SingleSpaceRule : IValidationRule
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
+                continue;
+
             var text = TextExtractionService.GetParagraphText(doc, paragraph, config);
 
             if (string.IsNullOrWhiteSpace(text))
