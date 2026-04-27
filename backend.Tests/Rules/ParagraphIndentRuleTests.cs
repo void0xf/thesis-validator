@@ -38,6 +38,14 @@ public class ParagraphIndentRuleTests
             new Run(new Text(text)));
     }
 
+    private static Paragraph CreateParagraphWithFont(string text, string fontFamily)
+    {
+        return new Paragraph(
+            new Run(
+                new RunProperties(new RunFonts { Ascii = fontFamily, HighAnsi = fontFamily }),
+                new Text(text)));
+    }
+
     [Fact]
     public void NormalParagraphWithoutIndent_ReturnsError()
     {
@@ -52,6 +60,17 @@ public class ParagraphIndentRuleTests
     public void ExcludedStylePattern_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraph(CreateParagraph("Caption paragraph", "Caption"));
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void CodeBlockParagraph_ReturnsNoErrors()
+    {
+        using var docx = CreateDocxWithParagraph(
+            CreateParagraphWithFont("public void ValidateDocument() { return; }", "Consolas"));
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 

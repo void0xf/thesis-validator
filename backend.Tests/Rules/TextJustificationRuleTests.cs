@@ -13,7 +13,10 @@ public class TextJustificationRuleTests
 
     private static UniversityConfig CreateConfig() => new();
 
-    private static InMemoryDocx CreateDocxWithJustification(JustificationValues? justification, string text = "Sample text content.")
+    private static InMemoryDocx CreateDocxWithJustification(
+        JustificationValues? justification,
+        string text = "Sample text content.",
+        string? fontFamily = null)
     {
         var stream = new MemoryStream();
         var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
@@ -25,7 +28,14 @@ public class TextJustificationRuleTests
         if (justification.HasValue)
             paragraphProps.Justification = new Justification { Val = justification.Value };
 
-        var paragraph = new Paragraph(paragraphProps, new Run(new Text(text)));
+        var run = new Run(new Text(text));
+        if (!string.IsNullOrEmpty(fontFamily))
+        {
+            run.RunProperties = new RunProperties(
+                new RunFonts { Ascii = fontFamily, HighAnsi = fontFamily });
+        }
+
+        var paragraph = new Paragraph(paragraphProps, run);
         mainPart.Document.Body!.Append(paragraph);
         mainPart.Document.Save();
 
@@ -179,6 +189,19 @@ public class TextJustificationRuleTests
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
+    }
+
+    [Fact]
+    public void CodeBlockParagraph_SkippedEvenIfNotJustified()
+    {
+        using var docx = CreateDocxWithJustification(
+            JustificationValues.Left,
+            "public void ValidateDocument() { return; }",
+            "Consolas");
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
     }
 
     [Fact]
