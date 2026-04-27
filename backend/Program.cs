@@ -5,6 +5,7 @@ using backend.RuleOptions;
 using backend.Services.Analysis;
 using backend.Services.CodeBlocks;
 using backend.Services.Language;
+using backend.Services.Rules;
 using Backend.Models;
 using ThesisValidator.Rules;
 
@@ -40,6 +41,12 @@ builder.Services.AddOptions<CodeBlockDetectionOptions>()
 builder.Services.AddOptions<EmptySectionStructureRuleOptions>()
     .Bind(builder.Configuration.GetSection(EmptySectionStructureRuleOptions.SectionName))
     .ValidateOnStart();
+
+builder.Services.AddOptions<FontFamilyRuleOptions>()
+    .Bind(builder.Configuration.GetSection(FontFamilyRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddScoped<IRuleConfigurationService, RuleConfigurationService>();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
 

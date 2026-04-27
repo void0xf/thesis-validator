@@ -1,11 +1,11 @@
 ﻿using backend.Models;
 using backend.Services.Comments;
-using backend.Rules;
-using backend.RuleOptions;
 using backend.Services.Exceptions;
 using backend.Services.Extraction;
+using backend.Services.Rules;
 using backend.Services.Skipping;
 using backend.Services.Structure;
+using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -18,15 +18,16 @@ public class ThesisValidatorService
 {
     private readonly IReadOnlyList<IValidationRule> _ruleList;
     private readonly IReadOnlySet<string> _ruleNames;
-    private readonly EmptySectionStructureRuleOptions _emptySectionOptions;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
 
     public ThesisValidatorService(
         IEnumerable<IValidationRule> rules,
-        IOptions<EmptySectionStructureRuleOptions>? emptySectionOptions = null)
+        IRuleConfigurationService? ruleConfigurationService = null)
     {
         _ruleList = rules.ToList();
         _ruleNames = _ruleList.Select(rule => rule.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _emptySectionOptions = emptySectionOptions?.Value ?? new EmptySectionStructureRuleOptions();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(Options.Create(new EmptySectionStructureRuleOptions()));
     }
 
     public IReadOnlyList<string> GetAvailableRuleNames()
@@ -278,8 +279,7 @@ public class ThesisValidatorService
 
     private bool IsExecutableRule(IValidationRule rule)
     {
-        return !string.Equals(rule.Name, EmptySectionStructureRule.RuleId, StringComparison.OrdinalIgnoreCase)
-            || _emptySectionOptions.Availability != RuleAvailability.Hidden;
+        return _ruleConfigurationService.IsRuleAvailable(rule.Name);
     }
 }
 

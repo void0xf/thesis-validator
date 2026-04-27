@@ -6,6 +6,7 @@ using backend.Rules;
 using backend.RuleOptions;
 using backend.Services.Analysis;
 using backend.Services.Comments;
+using backend.Services.Rules;
 using Backend.Models;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -27,6 +28,18 @@ public class EmptySectionStructureRuleConfigurationTests
         });
 
         Assert.Contains(EmptySectionStructureRule.RuleId, GetRuleNames(result));
+    }
+
+    [Fact]
+    public void GetAvailableRules_WhenEmptySectionSeverityIsConfigured_ReportsConfiguredSeverity()
+    {
+        var result = InvokeGetAvailableRules(new EmptySectionStructureRuleOptions
+        {
+            Availability = RuleAvailability.Available,
+            Severity = RuleSeverity.Error
+        });
+
+        Assert.Equal(ValidationSeverity.Error, GetRuleDefaultSeverity(result, EmptySectionStructureRule.RuleId));
     }
 
     [Fact]
@@ -105,7 +118,7 @@ public class EmptySectionStructureRuleConfigurationTests
 
     private static ValidationResult ValidateEmptySectionRule(EmptySectionStructureRuleOptions options)
     {
-        var rule = new EmptySectionStructureRule(Options.Create(options));
+        var rule = new EmptySectionStructureRule(CreateRuleConfigurationService(options));
         using var stream = CreateEmptySectionDocxStream();
         using var doc = WordprocessingDocument.Open(stream, false);
 
@@ -127,7 +140,7 @@ public class EmptySectionStructureRuleConfigurationTests
                 CreateService(
                     [new RecordingRule(EmptySectionStructureRule.RuleId), new RecordingRule("FontFamily")],
                     options),
-                Options.Create(options)
+                CreateRuleConfigurationService(options)
             });
 
         return Assert.IsAssignableFrom<IResult>(result);
@@ -137,10 +150,36 @@ public class EmptySectionStructureRuleConfigurationTests
         IEnumerable<IValidationRule> rules,
         EmptySectionStructureRuleOptions options)
     {
-        return new ThesisValidatorService(rules, Options.Create(options));
+        return new ThesisValidatorService(rules, CreateRuleConfigurationService(options));
+    }
+
+    private static IRuleConfigurationService CreateRuleConfigurationService(
+        EmptySectionStructureRuleOptions options)
+    {
+        return new RuleConfigurationService(Options.Create(options));
     }
 
     private static IReadOnlyList<string> GetRuleNames(IResult result)
+    {
+        return GetRules(result)
+            .Select(rule => rule.GetType().GetProperty("Name")?.GetValue(rule) as string)
+            .Where(name => name is not null)
+            .Cast<string>()
+            .ToList();
+    }
+
+    private static string? GetRuleDefaultSeverity(IResult result, string ruleName)
+    {
+        return GetRules(result)
+            .Where(rule => string.Equals(
+                rule.GetType().GetProperty("Name")?.GetValue(rule) as string,
+                ruleName,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(rule => rule.GetType().GetProperty("DefaultSeverity")?.GetValue(rule) as string)
+            .SingleOrDefault();
+    }
+
+    private static IEnumerable<object> GetRules(IResult result)
     {
         Assert.Equal(StatusCodes.Status200OK, result.GetType().GetProperty("StatusCode")?.GetValue(result));
 
@@ -150,12 +189,7 @@ public class EmptySectionStructureRuleConfigurationTests
         var rules = value.GetType().GetProperty("Rules")?.GetValue(value);
         Assert.NotNull(rules);
 
-        return ((IEnumerable)rules)
-            .Cast<object>()
-            .Select(rule => rule.GetType().GetProperty("Name")?.GetValue(rule) as string)
-            .Where(name => name is not null)
-            .Cast<string>()
-            .ToList();
+        return ((IEnumerable)rules).Cast<object>();
     }
 
     private static MemoryStream CreateEmptySectionDocxStream()

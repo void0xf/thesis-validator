@@ -10,6 +10,7 @@ using backend.Services.Analysis;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Results;
+using backend.Services.Rules;
 using backend.Services.Skipping;
 using backend.Services.Structure;
 
@@ -25,11 +26,12 @@ public class EmptySectionStructureRule : IValidationRule
 {
     public const string RuleId = nameof(EmptySectionStructureRule);
 
-    private readonly EmptySectionStructureRuleOptions _options;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
 
-    public EmptySectionStructureRule(IOptions<EmptySectionStructureRuleOptions>? options = null)
+    public EmptySectionStructureRule(IRuleConfigurationService? ruleConfigurationService = null)
     {
-        _options = options?.Value ?? new EmptySectionStructureRuleOptions();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(Options.Create(new EmptySectionStructureRuleOptions()));
     }
 
     public string Name => RuleId;
@@ -39,7 +41,7 @@ public class EmptySectionStructureRule : IValidationRule
         UniversityConfig config,
         DocumentCommentService? commentService = null)
     {
-        if (_options.Availability == RuleAvailability.Hidden)
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
             return [];
 
         var errors = new List<ValidationResult>();
@@ -107,7 +109,7 @@ public class EmptySectionStructureRule : IValidationRule
                         lastHeadingParaIdx,
                         lastHeadingPreview,
                         ParagraphIndexKind.BodyElement);
-                    result.Severity = _options.Severity.ToString();
+                    result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
                     errors.Add(result);
 
                     if (lastHeadingParagraph is not null)
