@@ -1,5 +1,7 @@
 ﻿using backend.Models;
 using backend.Services.Comments;
+using backend.Rules;
+using backend.RuleOptions;
 using backend.Services.Exceptions;
 using backend.Services.Extraction;
 using backend.Services.Skipping;
@@ -7,6 +9,7 @@ using backend.Services.Structure;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Services.Analysis;
@@ -15,11 +18,15 @@ public class ThesisValidatorService
 {
     private readonly IReadOnlyList<IValidationRule> _ruleList;
     private readonly IReadOnlySet<string> _ruleNames;
+    private readonly EmptySectionStructureRuleOptions _emptySectionOptions;
 
-    public ThesisValidatorService(IEnumerable<IValidationRule> rules)
+    public ThesisValidatorService(
+        IEnumerable<IValidationRule> rules,
+        IOptions<EmptySectionStructureRuleOptions>? emptySectionOptions = null)
     {
         _ruleList = rules.ToList();
         _ruleNames = _ruleList.Select(rule => rule.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _emptySectionOptions = emptySectionOptions?.Value ?? new EmptySectionStructureRuleOptions();
     }
 
     public IReadOnlyList<string> GetAvailableRuleNames()
@@ -264,7 +271,15 @@ public class ThesisValidatorService
                 : _ruleList.Where(rule => selectedSet.Contains(rule.Name)).ToList();
         }
 
-        return candidates.ToList();
+        return candidates
+            .Where(IsExecutableRule)
+            .ToList();
+    }
+
+    private bool IsExecutableRule(IValidationRule rule)
+    {
+        return !string.Equals(rule.Name, EmptySectionStructureRule.RuleId, StringComparison.OrdinalIgnoreCase)
+            || _emptySectionOptions.Availability != RuleAvailability.Hidden;
     }
 }
 
