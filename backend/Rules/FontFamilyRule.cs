@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
+using backend.Services.CodeBlocks;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
@@ -13,7 +14,14 @@ namespace backend.Rules;
 
 public class FontFamilyValidationRule : IValidationRule
 {
+    private readonly ICodeBlockDetector _codeBlockDetector;
+
     public string Name => nameof(FontConfig.FontFamily);
+
+    public FontFamilyValidationRule(ICodeBlockDetector? codeBlockDetector = null)
+    {
+        _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+    }
 
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config)
     {
@@ -30,6 +38,9 @@ public class FontFamilyValidationRule : IValidationRule
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
+            if (CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
+                continue;
+
             ValidateParagraph(doc, paragraph, paragraphIndex, expectedFont, config, errors, commentService);
         }
 
