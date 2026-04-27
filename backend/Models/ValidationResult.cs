@@ -4,14 +4,19 @@ namespace backend.Models;
 
 public static class ValidationSeverity
 {
+    public const string Info = "Info";
     public const string Error = "Error";
     public const string Warning = "Warning";
 
     public static string Normalize(string? severity)
     {
-        return string.Equals(severity, Warning, StringComparison.OrdinalIgnoreCase)
-            ? Warning
-            : Error;
+        if (string.Equals(severity, Info, StringComparison.OrdinalIgnoreCase))
+            return Info;
+
+        if (string.Equals(severity, Warning, StringComparison.OrdinalIgnoreCase))
+            return Warning;
+
+        return Error;
     }
 }
 
