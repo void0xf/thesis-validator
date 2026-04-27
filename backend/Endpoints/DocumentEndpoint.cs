@@ -151,15 +151,12 @@ public static class DocumentEndpoint
         return new UniversityConfig
         {
             Name = baseConfig.Name,
-            CheckGrammar = baseConfig.CheckGrammar,
             Language = baseConfig.Language,
             Analysis = new AnalysisConfig
             {
                 SkipBeforeTableOfContents = request.SkipBeforeTableOfContents,
                 SkipTextBoxes = request.SkipTextBoxes ?? baseConfig.Analysis.SkipTextBoxes,
-                SkipTableOfContentsContent = baseConfig.Analysis.SkipTableOfContentsContent,
-                SkipCodeFonts = baseConfig.Analysis.SkipCodeFonts,
-                CodeFontFamilies = baseConfig.Analysis.CodeFontFamilies.ToList()
+                SkipTableOfContentsContent = baseConfig.Analysis.SkipTableOfContentsContent
             },
             Rules = new RuleSettingsConfig
             {
@@ -167,8 +164,7 @@ public static class DocumentEndpoint
                     pair => pair.Key,
                     pair => new RuleOverrideConfig
                     {
-                        Severity = pair.Value.Severity,
-                        Enabled = pair.Value.Enabled
+                        Severity = pair.Value.Severity
                     },
                     StringComparer.OrdinalIgnoreCase)
             },
