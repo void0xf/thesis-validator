@@ -16,8 +16,7 @@ public static class SkipDecisionService
 
     private static readonly ISkipRule[] RunRules =
     [
-        new TextBoxSkipRule(),
-        new CodeFontSkipRule()
+        new TextBoxSkipRule()
     ];
 
     private static readonly StructuralStyleSkipRule StructuralStyleRule = new();
@@ -37,11 +36,6 @@ public static class SkipDecisionService
     {
         return config.Analysis.SkipBeforeTableOfContents
             ?? config.Formatting.SkipBeforeTableOfContents;
-    }
-
-    public static bool ShouldSkipCodeFonts(UniversityConfig config)
-    {
-        return config.Analysis.SkipCodeFonts;
     }
 
     public static SkipDecision ShouldSkipParagraph(
