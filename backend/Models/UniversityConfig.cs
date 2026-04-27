@@ -1,11 +1,8 @@
-using DocumentFormat.OpenXml.Packaging;
-
 namespace Backend.Models;
 
 public class UniversityConfig
 {
     public string Name { get; set; } = "Default University";
-    public bool CheckGrammar { get; set; } = true;
     public string Language { get; set; } = "pl-PL";
     public FormattingConfig Formatting { get; set; } = new FormattingConfig();
     public AnalysisConfig Analysis { get; set; } = new AnalysisConfig();
@@ -27,16 +24,6 @@ public class AnalysisConfig
     public bool? SkipBeforeTableOfContents { get; set; }
     public bool? SkipTextBoxes { get; set; }
     public bool? SkipTableOfContentsContent { get; set; }
-    public bool SkipCodeFonts { get; set; }
-    public List<string> CodeFontFamilies { get; set; } =
-    [
-        "Consolas",
-        "Courier New",
-        "Courier",
-        "Menlo",
-        "Monaco",
-        "Monospace"
-    ];
 }
 
 public class RuleSettingsConfig
@@ -59,7 +46,6 @@ public class RuleSettingsConfig
 public class RuleOverrideConfig
 {
     public string? Severity { get; set; }
-    public bool? Enabled { get; set; }
 }
 
 public class FontConfig
