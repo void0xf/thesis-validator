@@ -14,13 +14,7 @@ public static class TextExtractionService
         Paragraph paragraph,
         UniversityConfig config)
     {
-        if (!SkipDecisionService.ShouldSkipCodeFonts(config))
-            return GetParagraphText(paragraph, config);
-
-        return string.Concat(paragraph
-            .Descendants<Run>()
-            .Where(run => !SkipDecisionService.ShouldSkipRun(doc, paragraph, run, config).ShouldSkip)
-            .Select(run => GetRunText(run, config)));
+        return GetParagraphText(paragraph, config);
     }
 
     public static string GetParagraphText(Paragraph paragraph, UniversityConfig config)
