@@ -1,9 +1,12 @@
 using backend.Models;
+using backend.Rules;
+using backend.RuleOptions;
 using Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using backend.Services.Analysis;
 using backend.Services.Exceptions;
+using ThesisValidator.Rules;
 
 namespace backend.Endpoints;
 
@@ -122,9 +125,12 @@ public static class DocumentEndpoint
         }
     }
 
-    private static IResult GetAvailableRules(ThesisValidatorService thesisValidatorService)
+    private static IResult GetAvailableRules(
+        ThesisValidatorService thesisValidatorService,
+        IOptions<EmptySectionStructureRuleOptions> emptySectionOptions)
     {
         var ruleList = thesisValidatorService.GetAvailableRules()
+            .Where(rule => IsAvailableRule(rule, emptySectionOptions.Value))
             .Select(rule => new
             {
                 Name = rule.Id,
@@ -137,6 +143,14 @@ public static class DocumentEndpoint
             .ToList();
 
         return Results.Ok(new { Rules = ruleList, Count = ruleList.Count });
+    }
+
+    private static bool IsAvailableRule(
+        RuleDefinition rule,
+        EmptySectionStructureRuleOptions emptySectionOptions)
+    {
+        return !string.Equals(rule.Id, EmptySectionStructureRule.RuleId, StringComparison.OrdinalIgnoreCase)
+            || emptySectionOptions.Availability != RuleAvailability.Hidden;
     }
 
     private static IResult HealthCheck()
