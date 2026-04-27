@@ -156,12 +156,12 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     category: 'structure'
   },
   'CheckTableOfContents': {
-    displayName: 'Table of Contents',
-    description: 'Ensures the document contains a Table of Contents',
+    displayName: 'Automatic Table of Contents',
+    description: 'Ensures the document contains an automatic Word table of contents',
     category: 'structure'
   },
   'Manual table of contents': {
-    displayName: 'Manual table of contents',
+    displayName: 'Manual Table of Contents',
     description: 'Warns when a table of contents appears to be manually written',
     category: 'structure'
   },
