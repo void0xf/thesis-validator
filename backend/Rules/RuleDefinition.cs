@@ -43,9 +43,14 @@ public static class RuleCatalog
                 "Title Punctuation",
                 RuleCategories.Formatting,
                 ValidationSeverity.Error),
-            ["ListConsistencyRule"] = new(
-                "ListConsistencyRule",
-                "List Consistency",
+            ["ListPunctuationConsistencyRule"] = new(
+                "ListPunctuationConsistencyRule",
+                "List Punctuation Consistency",
+                RuleCategories.Layout,
+                ValidationSeverity.Error),
+            ["ListIndentationConsistencyRule"] = new(
+                "ListIndentationConsistencyRule",
+                "List Indentation Consistency",
                 RuleCategories.Layout,
                 ValidationSeverity.Error),
             ["ParagraphSpacingRule"] = new(

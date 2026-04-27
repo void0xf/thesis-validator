@@ -30,8 +30,23 @@ public sealed class StructuralStyleSkipRule : ISkipRule
         UniversityConfig config,
         SkipContext context)
     {
+        return ShouldSkipParagraph(
+            doc,
+            paragraph,
+            config,
+            context,
+            excludeListStyles: true);
+    }
+
+    public SkipDecision ShouldSkipParagraph(
+        WordprocessingDocument? doc,
+        Paragraph paragraph,
+        UniversityConfig config,
+        SkipContext context,
+        bool excludeListStyles)
+    {
         var styleId = StyleResolutionService.GetParagraphStyleId(paragraph);
-        if (ContainsExcludedPattern(styleId))
+        if (ContainsExcludedPattern(styleId, excludeListStyles))
         {
             return SkipDecision.Skip(
                 SkipReason.StructuralStyle,
@@ -43,7 +58,7 @@ public sealed class StructuralStyleSkipRule : ISkipRule
 
         var style = StyleResolutionService.FindStyle(doc, styleId);
         var styleName = style?.StyleName?.Val?.Value;
-        if (ContainsExcludedPattern(styleName))
+        if (ContainsExcludedPattern(styleName, excludeListStyles))
         {
             return SkipDecision.Skip(
                 SkipReason.StructuralStyle,
@@ -56,12 +71,19 @@ public sealed class StructuralStyleSkipRule : ISkipRule
             : SkipDecision.Include;
     }
 
-    private static bool ContainsExcludedPattern(string? value)
+    private static bool ContainsExcludedPattern(string? value, bool excludeListStyles)
     {
         if (string.IsNullOrEmpty(value))
             return false;
 
         var valueLower = value.ToLowerInvariant();
-        return ExcludedStylePatterns.Any(pattern => valueLower.Contains(pattern));
+        return ExcludedStylePatterns.Any(pattern =>
+            (excludeListStyles || !IsListStylePattern(pattern))
+            && valueLower.Contains(pattern));
+    }
+
+    private static bool IsListStylePattern(string pattern)
+    {
+        return pattern is "list" or "lista";
     }
 }

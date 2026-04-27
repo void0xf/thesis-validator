@@ -165,7 +165,7 @@ public class SectionContextTests
 
     private static readonly HashSet<string> ElementsBasedRules = new(StringComparer.OrdinalIgnoreCase)
     {
-        "FontFamily", "ListConsistencyRule", "Grammar",
+        "FontFamily", "ListPunctuationConsistencyRule", "ListIndentationConsistencyRule", "Grammar",
         "FigureCaptionStyleRule", "EmptySectionStructureRule",
         "HeadingStyleUsageRule", "CheckTableOfContents",
     };

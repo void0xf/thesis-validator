@@ -95,9 +95,14 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that headings and titles do not end with periods',
     category: 'formatting'
   },
-  'ListConsistencyRule': {
-    displayName: 'List Consistency',
-    description: 'Validates consistent punctuation and indentation in lists',
+  'ListPunctuationConsistencyRule': {
+    displayName: 'List Punctuation Consistency',
+    description: 'Checks that list item punctuation is consistent and final items end with a period',
+    category: 'layout'
+  },
+  'ListIndentationConsistencyRule': {
+    displayName: 'List Indentation Consistency',
+    description: 'Checks that list items at the same level use identical indentation',
     category: 'layout'
   },
   'ParagraphSpacingRule': {

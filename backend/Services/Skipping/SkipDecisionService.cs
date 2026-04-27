@@ -98,32 +98,42 @@ public static class SkipDecisionService
 
     public static SkipDecision ShouldSkipStructuralStyle(
         WordprocessingDocument doc,
-        Paragraph paragraph)
+        Paragraph paragraph,
+        bool excludeListStyles = true)
     {
         return StructuralStyleRule.ShouldSkipParagraph(
             doc,
             paragraph,
             new UniversityConfig(),
-            new SkipContext());
+            new SkipContext(),
+            excludeListStyles);
     }
 
-    public static SkipDecision ShouldSkipStructuralStyle(Paragraph paragraph)
+    public static SkipDecision ShouldSkipStructuralStyle(
+        Paragraph paragraph,
+        bool excludeListStyles = true)
     {
         return StructuralStyleRule.ShouldSkipParagraph(
             null,
             paragraph,
             new UniversityConfig(),
-            new SkipContext());
+            new SkipContext(),
+            excludeListStyles);
     }
 
-    public static bool HasExcludedStructuralStyle(Paragraph paragraph)
+    public static bool HasExcludedStructuralStyle(
+        Paragraph paragraph,
+        bool excludeListStyles = true)
     {
-        return ShouldSkipStructuralStyle(paragraph).ShouldSkip;
+        return ShouldSkipStructuralStyle(paragraph, excludeListStyles).ShouldSkip;
     }
 
-    public static bool HasExcludedStructuralStyle(WordprocessingDocument doc, Paragraph paragraph)
+    public static bool HasExcludedStructuralStyle(
+        WordprocessingDocument doc,
+        Paragraph paragraph,
+        bool excludeListStyles = true)
     {
-        return ShouldSkipStructuralStyle(doc, paragraph).ShouldSkip;
+        return ShouldSkipStructuralStyle(doc, paragraph, excludeListStyles).ShouldSkip;
     }
 
     public static bool IsListItem(Paragraph paragraph)

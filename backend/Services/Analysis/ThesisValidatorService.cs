@@ -189,7 +189,7 @@ public class ThesisValidatorService
         var elementsMap = new List<(int, string)>();
         var descendantsMap = new List<(int, string)>();
 
-        // Elements-based map (direct body children only - matches FontFamily, List, Grammar, FigureCaption, EmptySection rules)
+        // Elements-based map (direct body children only - matches FontFamily, list rules, Grammar, FigureCaption, EmptySection rules)
         foreach (var (para, elemIdx) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
             var level = HeadingDetectionService.GetHeadingLevel(doc, para);

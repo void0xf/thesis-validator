@@ -16,19 +16,25 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly HeadingStyleUsageRuleOptions _headingStyleUsageOptions;
     private readonly HierarchyDepthRuleOptions _hierarchyDepthOptions;
     private readonly LineSpacingDependencyRuleOptions _lineSpacingDependencyOptions;
+    private readonly ListPunctuationConsistencyRuleOptions _listPunctuationConsistencyOptions;
+    private readonly ListIndentationConsistencyRuleOptions _listIndentationConsistencyOptions;
 
     public RuleConfigurationService(
         IOptions<EmptySectionStructureRuleOptions> emptySectionOptions,
         IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null,
         IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null,
         IOptions<HierarchyDepthRuleOptions>? hierarchyDepthOptions = null,
-        IOptions<LineSpacingDependencyRuleOptions>? lineSpacingDependencyOptions = null)
+        IOptions<LineSpacingDependencyRuleOptions>? lineSpacingDependencyOptions = null,
+        IOptions<ListPunctuationConsistencyRuleOptions>? listPunctuationConsistencyOptions = null,
+        IOptions<ListIndentationConsistencyRuleOptions>? listIndentationConsistencyOptions = null)
     {
         _emptySectionOptions = emptySectionOptions.Value;
         _fontFamilyOptions = fontFamilyOptions?.Value ?? new FontFamilyRuleOptions();
         _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
         _hierarchyDepthOptions = hierarchyDepthOptions?.Value ?? new HierarchyDepthRuleOptions();
         _lineSpacingDependencyOptions = lineSpacingDependencyOptions?.Value ?? new LineSpacingDependencyRuleOptions();
+        _listPunctuationConsistencyOptions = listPunctuationConsistencyOptions?.Value ?? new ListPunctuationConsistencyRuleOptions();
+        _listIndentationConsistencyOptions = listIndentationConsistencyOptions?.Value ?? new ListIndentationConsistencyRuleOptions();
     }
 
     public bool IsRuleAvailable(string ruleId)
@@ -47,6 +53,12 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsLineSpacingDependencyRule(ruleId))
             return _lineSpacingDependencyOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsListPunctuationConsistencyRule(ruleId))
+            return _listPunctuationConsistencyOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsListIndentationConsistencyRule(ruleId))
+            return _listIndentationConsistencyOptions.Availability != RuleAvailability.Hidden;
 
         return true;
     }
@@ -71,6 +83,12 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsLineSpacingDependencyRule(ruleId))
             return ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString());
 
+        if (IsListPunctuationConsistencyRule(ruleId))
+            return ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString());
+
+        if (IsListIndentationConsistencyRule(ruleId))
+            return ValidationSeverity.Normalize(_listIndentationConsistencyOptions.Severity.ToString());
+
         return SeverityResolver.Resolve(ruleId, config, explicitSeverity);
     }
 
@@ -90,6 +108,12 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsLineSpacingDependencyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString()) };
+
+        if (IsListPunctuationConsistencyRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString()) };
+
+        if (IsListIndentationConsistencyRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_listIndentationConsistencyOptions.Severity.ToString()) };
 
         return definition;
     }
@@ -131,6 +155,22 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             LineSpacingDependencyRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsListPunctuationConsistencyRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            ListPunctuationConsistencyRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsListIndentationConsistencyRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            ListIndentationConsistencyRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 }

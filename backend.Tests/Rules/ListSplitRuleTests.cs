@@ -7,9 +7,10 @@ using Rules;
 
 namespace backend.Tests.Rules;
 
-public class ListConsistencyRuleTests
+public class ListSplitRuleTests
 {
-    private readonly ListConsistencyRule _rule = new();
+    private readonly ListPunctuationConsistencyRule _punctuationRule = new();
+    private readonly ListIndentationConsistencyRule _indentationRule = new();
 
     private static UniversityConfig CreateConfig() => new();
 
@@ -71,7 +72,7 @@ public class ListConsistencyRuleTests
     }
 
     [Fact]
-    public void ConsistentPunctuationWithSemicolons_ReturnsNoErrors()
+    public void PunctuationRule_ConsistentPunctuationWithSemicolons_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1),
@@ -79,13 +80,13 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void ConsistentPunctuationWithCommas_ReturnsNoErrors()
+    public void PunctuationRule_ConsistentPunctuationWithCommas_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item,", 1),
@@ -93,13 +94,13 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void MixedPunctuation_ReturnsErrors()
+    public void PunctuationRule_MixedPunctuation_ReturnsErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1),
@@ -108,7 +109,7 @@ public class ListConsistencyRuleTests
             CreateListItem("Fourth item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("','", errors[0].Message);
@@ -116,7 +117,23 @@ public class ListConsistencyRuleTests
     }
 
     [Fact]
-    public void LastItemNotEndingWithPeriod_ReturnsError()
+    public void PunctuationRule_ListParagraphStyle_IsCheckedAsListItem()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("First item;", 1, styleId: "ListParagraph"),
+            CreateListItem("Second item,", 1, styleId: "ListParagraph"),
+            CreateListItem("Third item.", 1, styleId: "ListParagraph")
+        );
+
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Single(errors);
+        Assert.Contains("','", errors[0].Message);
+        Assert.Contains("';'", errors[0].Message);
+    }
+
+    [Fact]
+    public void PunctuationRule_LastItemNotEndingWithPeriod_ReturnsError()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1),
@@ -124,14 +141,14 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item;", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("Last list item should end with period", errors[0].Message);
     }
 
     [Fact]
-    public void MiddleItemMissingPunctuation_ReturnsError()
+    public void PunctuationRule_MiddleItemMissingPunctuation_ReturnsError()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1),
@@ -139,7 +156,7 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("no punctuation", errors[0].Message);
@@ -147,19 +164,19 @@ public class ListConsistencyRuleTests
     }
 
     [Fact]
-    public void SingleItemList_ReturnsNoErrors()
+    public void PunctuationRule_SingleItemList_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("Only item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void FirstItemNoPunctuation_MiddleItemsMustMatch()
+    public void PunctuationRule_FirstItemNoPunctuation_MiddleItemsMustMatch()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item", 1),
@@ -167,7 +184,7 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("';'", errors[0].Message);
@@ -175,7 +192,7 @@ public class ListConsistencyRuleTests
     }
 
     [Fact]
-    public void AllItemsNoPunctuation_LastMustEndWithPeriod()
+    public void PunctuationRule_AllItemsNoPunctuation_LastMustEndWithPeriod()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item", 1),
@@ -183,14 +200,14 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("Last list item should end with period", errors[0].Message);
     }
 
     [Fact]
-    public void ConsistentIndentation_ReturnsNoErrors()
+    public void IndentationRule_ConsistentIndentation_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1, level: 0, indentTwips: 720),
@@ -198,13 +215,13 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1, level: 0, indentTwips: 720)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _indentationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void InconsistentIndentation_ReturnsError()
+    public void IndentationRule_InconsistentIndentation_ReturnsError()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1, level: 0, indentTwips: 720),
@@ -212,14 +229,29 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1, level: 0, indentTwips: 720)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _indentationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("inconsistent indentation", errors[0].Message);
     }
 
     [Fact]
-    public void DifferentLevelsWithDifferentIndentation_ReturnsNoErrors()
+    public void IndentationRule_ListParagraphStyle_IsCheckedAsListItem()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("First item;", 1, level: 0, indentTwips: 720, styleId: "ListParagraph"),
+            CreateListItem("Second item;", 1, level: 0, indentTwips: 1440, styleId: "ListParagraph"),
+            CreateListItem("Third item.", 1, level: 0, indentTwips: 720, styleId: "ListParagraph")
+        );
+
+        var errors = _indentationRule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Single(errors);
+        Assert.Contains("inconsistent indentation", errors[0].Message);
+    }
+
+    [Fact]
+    public void IndentationRule_DifferentLevelsWithDifferentIndentation_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1, level: 0, indentTwips: 720),
@@ -227,14 +259,40 @@ public class ListConsistencyRuleTests
             CreateListItem("Second item.", 1, level: 0, indentTwips: 720)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _indentationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
-        var indentErrors = errors.Where(e => e.Message.Contains("indentation")).ToList();
-        Assert.Empty(indentErrors);
+        Assert.Empty(errors);
     }
 
     [Fact]
-    public void TwoSeparateLists_CheckedIndependently()
+    public void PunctuationRule_IgnoresIndentationDifferences()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("First item;", 1, level: 0, indentTwips: 720),
+            CreateListItem("Second item.", 1, level: 0, indentTwips: 1440)
+        );
+
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void IndentationRule_IgnoresPunctuationDifferences()
+    {
+        using var docx = CreateDocxWithParagraphs(
+            CreateListItem("First item;", 1, level: 0, indentTwips: 720),
+            CreateListItem("Second item,", 1, level: 0, indentTwips: 720),
+            CreateListItem("Third item.", 1, level: 0, indentTwips: 720)
+        );
+
+        var errors = _indentationRule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void PunctuationRule_TwoSeparateLists_CheckedIndependently()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("List1 item1;", 1),
@@ -244,39 +302,39 @@ public class ListConsistencyRuleTests
             CreateListItem("List2 item2.", 2)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void NumberedHeadings_AreNotCheckedAsListItems()
+    public void PunctuationRule_NumberedHeadings_AreNotCheckedAsListItems()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateNumberedHeading("Chapter one", 1),
             CreateNumberedHeading("Chapter two", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void ExcludedStylePattern_AreNotCheckedAsListItems()
+    public void PunctuationRule_ExcludedStylePattern_AreNotCheckedAsListItems()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("Caption one;", 1, styleId: "Caption"),
             CreateListItem("Caption two;", 1, styleId: "Caption")
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void NumberedHeading_BreaksAdjacentLists()
+    public void PunctuationRule_NumberedHeading_BreaksAdjacentLists()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First list item;", 1),
@@ -286,13 +344,13 @@ public class ListConsistencyRuleTests
             CreateListItem("Second list end.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void TwoListsBothWithErrors_ReportsAllErrors()
+    public void PunctuationRule_TwoListsBothWithErrors_ReportsAllErrors()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("List1 item1;", 1),
@@ -302,13 +360,13 @@ public class ListConsistencyRuleTests
             CreateListItem("List2 item2,", 2)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Equal(2, errors.Count);
     }
 
     [Fact]
-    public void EmptyListItem_HandledGracefully()
+    public void PunctuationRule_EmptyListItem_HandledGracefully()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("First item;", 1),
@@ -316,7 +374,7 @@ public class ListConsistencyRuleTests
             CreateListItem("Third item.", 1)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Single(errors);
         Assert.Contains("no punctuation", errors[0].Message);
@@ -324,7 +382,7 @@ public class ListConsistencyRuleTests
     }
 
     [Fact]
-    public void NoLists_ReturnsNoErrors()
+    public void PunctuationRule_NoLists_ReturnsNoErrors()
     {
         var stream = new MemoryStream();
         var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
@@ -336,13 +394,13 @@ public class ListConsistencyRuleTests
         mainPart.Document.Save();
         using var docx = new InMemoryDocx(doc, stream);
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }
 
     [Fact]
-    public void NestedListLevels_CheckedSeparately()
+    public void PunctuationRule_NestedListLevels_CheckedSeparately()
     {
         using var docx = CreateDocxWithParagraphs(
             CreateListItem("Main item 1:", 1, level: 0),
@@ -351,7 +409,7 @@ public class ListConsistencyRuleTests
             CreateListItem("Main item 2.", 1, level: 0)
         );
 
-        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+        var errors = _punctuationRule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.NotNull(errors);
     }

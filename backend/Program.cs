@@ -66,6 +66,14 @@ builder.Services.AddOptions<LineSpacingDependencyRuleOptions>()
         "LineSpacingDependencyRule:TargetLineSpacingTwips must be greater than 0.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<ListPunctuationConsistencyRuleOptions>()
+    .Bind(builder.Configuration.GetSection(ListPunctuationConsistencyRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ListIndentationConsistencyRuleOptions>()
+    .Bind(builder.Configuration.GetSection(ListIndentationConsistencyRuleOptions.SectionName))
+    .ValidateOnStart();
+
 builder.Services.AddScoped<IRuleConfigurationService, RuleConfigurationService>();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
