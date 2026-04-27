@@ -9,6 +9,7 @@ public class CaptionDetectionServiceTests
     [Theory]
     [InlineData("Caption", true)]
     [InlineData("Legenda", true)]
+    [InlineData("Legend", true)]
     [InlineData("Normal", false)]
     [InlineData("Normalny", false)]
     [InlineData(null, false)]
@@ -31,6 +32,21 @@ public class CaptionDetectionServiceTests
         var run = CaptionDetectionService.GetFirstTextRun(paragraph, new UniversityConfig());
 
         Assert.Equal("Caption text", run!.GetFirstChild<Text>()!.Text);
+    }
+
+    [Theory]
+    [InlineData("Rys 1 Schemat architektury systemu", true)]
+    [InlineData("Rys 1", true)]
+    [InlineData("Rys. 1 Schemat architektury systemu", true)]
+    [InlineData("Rys. 1", true)]
+    [InlineData("Rysunek 1 Schemat architektury systemu", true)]
+    [InlineData("Rysunek 1", true)]
+    [InlineData("Rys. 2.1", true)]
+    [InlineData("Diagram 1 Schemat architektury systemu", false)]
+    [InlineData("Rysunek: 1 Schemat architektury systemu", false)]
+    public void HasValidFigureCaptionFormat_ClassifiesSupportedLabels(string text, bool expected)
+    {
+        Assert.Equal(expected, CaptionDetectionService.HasValidFigureCaptionFormat(text));
     }
 
     private static Paragraph CreateParagraph(string? styleId, string text)
