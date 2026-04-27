@@ -21,6 +21,11 @@ public static class StyleResolutionService
                 string.Equals(style.StyleId?.Value, styleId, StringComparison.OrdinalIgnoreCase));
     }
 
+    public static string? GetStyleName(WordprocessingDocument doc, string? styleId)
+    {
+        return FindStyle(doc, styleId)?.StyleName?.Val?.Value;
+    }
+
     public static IEnumerable<Style> GetStyleChain(WordprocessingDocument doc, string? styleId)
     {
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
