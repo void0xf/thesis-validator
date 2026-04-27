@@ -46,6 +46,14 @@ builder.Services.AddOptions<FontFamilyRuleOptions>()
     .Bind(builder.Configuration.GetSection(FontFamilyRuleOptions.SectionName))
     .ValidateOnStart();
 
+builder.Services.AddOptions<HeadingStyleUsageRuleOptions>()
+    .Bind(builder.Configuration.GetSection(HeadingStyleUsageRuleOptions.SectionName))
+    .Validate(options => options.FontSizeThresholdAboveBodyPt >= 0,
+        "HeadingStyleUsageRule:FontSizeThresholdAboveBodyPt must be greater than or equal to 0.")
+    .Validate(options => options.MaxHeadingTextLength > 0,
+        "HeadingStyleUsageRule:MaxHeadingTextLength must be greater than 0.")
+    .ValidateOnStart();
+
 builder.Services.AddScoped<IRuleConfigurationService, RuleConfigurationService>();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();

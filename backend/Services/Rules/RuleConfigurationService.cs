@@ -12,13 +12,16 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 {
     private readonly EmptySectionStructureRuleOptions _emptySectionOptions;
     private readonly FontFamilyRuleOptions _fontFamilyOptions;
+    private readonly HeadingStyleUsageRuleOptions _headingStyleUsageOptions;
 
     public RuleConfigurationService(
         IOptions<EmptySectionStructureRuleOptions> emptySectionOptions,
-        IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null)
+        IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null,
+        IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null)
     {
         _emptySectionOptions = emptySectionOptions.Value;
         _fontFamilyOptions = fontFamilyOptions?.Value ?? new FontFamilyRuleOptions();
+        _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
     }
 
     public bool IsRuleAvailable(string ruleId)
@@ -28,6 +31,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsFontFamilyRule(ruleId))
             return _fontFamilyOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsHeadingStyleUsageRule(ruleId))
+            return _headingStyleUsageOptions.Availability != RuleAvailability.Hidden;
 
         return true;
     }
@@ -43,6 +49,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsFontFamilyRule(ruleId))
             return ValidationSeverity.Normalize(_fontFamilyOptions.Severity.ToString());
 
+        if (IsHeadingStyleUsageRule(ruleId))
+            return ValidationSeverity.Normalize(_headingStyleUsageOptions.Severity.ToString());
+
         return SeverityResolver.Resolve(ruleId, config, explicitSeverity);
     }
 
@@ -53,6 +62,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsFontFamilyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_fontFamilyOptions.Severity.ToString()) };
+
+        if (IsHeadingStyleUsageRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_headingStyleUsageOptions.Severity.ToString()) };
 
         return definition;
     }
@@ -70,6 +82,14 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             FontFamilyValidationRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHeadingStyleUsageRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            HeadingStyleUsageRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 }

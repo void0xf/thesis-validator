@@ -1,13 +1,16 @@
 using backend.Models;
+using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
 using backend.Services.Results;
+using backend.Services.Rules;
 using backend.Services.Skipping;
 using backend.Services.Structure;
 
@@ -18,19 +21,37 @@ namespace backend.Rules;
 /// </summary>
 public class HeadingStyleUsageRule : IValidationRule
 {
-    public string Name => "HeadingStyleUsageRule";
+    public const string RuleId = nameof(HeadingStyleUsageRule);
 
-    private const int FontSizeThresholdAboveBodyPt = 2;
-    private const int MaxHeadingTextLength = 200;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
+    private readonly HeadingStyleUsageRuleOptions _options;
+
+    public HeadingStyleUsageRule(
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<HeadingStyleUsageRuleOptions>? options = null)
+    {
+        var headingOptions = options ?? Options.Create(new HeadingStyleUsageRuleOptions());
+
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                headingStyleUsageOptions: headingOptions);
+        _options = headingOptions.Value;
+    }
+
+    public string Name => RuleId;
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
         UniversityConfig config,
         DocumentCommentService? commentService = null)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
         var bodyFontSizePt = config.Formatting.Font.FontSize;
-        var thresholdPt = bodyFontSizePt + FontSizeThresholdAboveBodyPt;
+        var thresholdPt = bodyFontSizePt + _options.FontSizeThresholdAboveBodyPt;
 
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.BodyParagraphs(doc, config))
         {
@@ -42,7 +63,7 @@ public class HeadingStyleUsageRule : IValidationRule
 
             var text = TextExtractionService.GetParagraphText(doc, paragraph, config).Trim();
 
-            if (string.IsNullOrWhiteSpace(text) || text.Length > MaxHeadingTextLength)
+            if (string.IsNullOrWhiteSpace(text) || text.Length > _options.MaxHeadingTextLength)
                 continue;
 
             if (!LooksLikeManualHeading(doc, paragraph, config, thresholdPt))
@@ -54,13 +75,15 @@ public class HeadingStyleUsageRule : IValidationRule
                 "apply a proper Heading style (Heading 1, Heading 2, etc.) " +
                 "instead of manual bold/font-size formatting.";
 
-            errors.Add(ValidationResultFactory.ForParagraph(
+            var result = ValidationResultFactory.ForParagraph(
                 Name,
                 config,
                 message,
                 paragraphIndex,
                 preview,
-                ParagraphIndexKind.BodyElement));
+                ParagraphIndexKind.BodyElement);
+            result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+            errors.Add(result);
 
             commentService?.AddCommentToParagraph(doc, paragraph, message);
         }
