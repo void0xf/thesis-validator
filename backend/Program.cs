@@ -1,6 +1,7 @@
 using System.Reflection;
 using backend.Endpoints;
 using backend.Models;
+using backend.RuleOptions;
 using backend.Services.Analysis;
 using backend.Services.CodeBlocks;
 using backend.Services.Language;
@@ -34,6 +35,10 @@ builder.Services.AddOptions<CodeBlockDetectionOptions>()
         options => options.CodeFonts is not null
             && options.CodeFonts.Any(font => !string.IsNullOrWhiteSpace(font)),
         "CodeBlockDetection:CodeFonts must contain at least one font.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<EmptySectionStructureRuleOptions>()
+    .Bind(builder.Configuration.GetSection(EmptySectionStructureRuleOptions.SectionName))
     .ValidateOnStart();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
