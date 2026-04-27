@@ -54,6 +54,12 @@ builder.Services.AddOptions<HeadingStyleUsageRuleOptions>()
         "HeadingStyleUsageRule:MaxHeadingTextLength must be greater than 0.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<HierarchyDepthRuleOptions>()
+    .Bind(builder.Configuration.GetSection(HierarchyDepthRuleOptions.SectionName))
+    .Validate(options => options.MaxAllowedLevel > 0,
+        "HierarchyDepthRule:MaxAllowedLevel must be greater than 0.")
+    .ValidateOnStart();
+
 builder.Services.AddScoped<IRuleConfigurationService, RuleConfigurationService>();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();

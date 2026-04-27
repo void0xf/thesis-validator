@@ -4,6 +4,7 @@ using backend.RuleOptions;
 using backend.Services.Results;
 using Backend.Models;
 using Microsoft.Extensions.Options;
+using Rules;
 using ThesisValidator.Rules;
 
 namespace backend.Services.Rules;
@@ -13,15 +14,18 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly EmptySectionStructureRuleOptions _emptySectionOptions;
     private readonly FontFamilyRuleOptions _fontFamilyOptions;
     private readonly HeadingStyleUsageRuleOptions _headingStyleUsageOptions;
+    private readonly HierarchyDepthRuleOptions _hierarchyDepthOptions;
 
     public RuleConfigurationService(
         IOptions<EmptySectionStructureRuleOptions> emptySectionOptions,
         IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null,
-        IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null)
+        IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null,
+        IOptions<HierarchyDepthRuleOptions>? hierarchyDepthOptions = null)
     {
         _emptySectionOptions = emptySectionOptions.Value;
         _fontFamilyOptions = fontFamilyOptions?.Value ?? new FontFamilyRuleOptions();
         _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
+        _hierarchyDepthOptions = hierarchyDepthOptions?.Value ?? new HierarchyDepthRuleOptions();
     }
 
     public bool IsRuleAvailable(string ruleId)
@@ -34,6 +38,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsHeadingStyleUsageRule(ruleId))
             return _headingStyleUsageOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsHierarchyDepthRule(ruleId))
+            return _hierarchyDepthOptions.Availability != RuleAvailability.Hidden;
 
         return true;
     }
@@ -52,6 +59,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsHeadingStyleUsageRule(ruleId))
             return ValidationSeverity.Normalize(_headingStyleUsageOptions.Severity.ToString());
 
+        if (IsHierarchyDepthRule(ruleId))
+            return ValidationSeverity.Normalize(_hierarchyDepthOptions.Severity.ToString());
+
         return SeverityResolver.Resolve(ruleId, config, explicitSeverity);
     }
 
@@ -65,6 +75,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsHeadingStyleUsageRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_headingStyleUsageOptions.Severity.ToString()) };
+
+        if (IsHierarchyDepthRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_hierarchyDepthOptions.Severity.ToString()) };
 
         return definition;
     }
@@ -90,6 +103,14 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             HeadingStyleUsageRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHierarchyDepthRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            HierarchyDepthRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 }
