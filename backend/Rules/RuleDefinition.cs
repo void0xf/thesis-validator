@@ -73,11 +73,31 @@ public static class RuleCatalog
                 "Heading Hierarchy",
                 RuleCategories.Structure,
                 ValidationSeverity.Error),
-            ["FigureCaptionStyleRule"] = new(
-                "FigureCaptionStyleRule",
-                "Figure Captions",
+            ["MissingFigureCaptionRule"] = new(
+                "MissingFigureCaptionRule",
+                "Missing Figure Captions",
                 RuleCategories.Structure,
                 ValidationSeverity.Error),
+            ["FigureCaptionPositionRule"] = new(
+                "FigureCaptionPositionRule",
+                "Figure Caption Position",
+                RuleCategories.Structure,
+                ValidationSeverity.Error),
+            ["FigureCaptionStyleRule"] = new(
+                "FigureCaptionStyleRule",
+                "Figure Caption Style",
+                RuleCategories.Structure,
+                ValidationSeverity.Error),
+            ["FigureCaptionFormatRule"] = new(
+                "FigureCaptionFormatRule",
+                "Figure Caption Format",
+                RuleCategories.Structure,
+                ValidationSeverity.Error),
+            ["FigureCaptionAutomaticNumberingRule"] = new(
+                "FigureCaptionAutomaticNumberingRule",
+                "Figure Caption Automatic Numbering",
+                RuleCategories.Structure,
+                ValidationSeverity.Warning),
             ["CheckTableOfContents"] = new(
                 "CheckTableOfContents",
                 "Table of Contents",
