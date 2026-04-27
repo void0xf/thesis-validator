@@ -1,7 +1,10 @@
 using backend.Models;
+using backend.RuleOptions;
+using backend.Services.Rules;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.CodeBlocks;
@@ -15,19 +18,31 @@ using backend.Services.Structure;
 namespace Rules;
 
 /// <summary>
-/// Rule #11: If line spacing is 1.5, then paragraph spacing before and after must be 0.
+/// Rule #11: Body text must use the configured line spacing.
 /// </summary>
 public class LineSpacingDependencyRule : IValidationRule
 {
+    public const string RuleId = nameof(LineSpacingDependencyRule);
+
     private readonly ICodeBlockDetector _codeBlockDetector;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
+    private readonly LineSpacingDependencyRuleOptions _options;
 
-    private const int LineSpacing15 = 360;
+    public string Name => RuleId;
 
-    public string Name => "LineSpacingDependencyRule";
-
-    public LineSpacingDependencyRule(ICodeBlockDetector? codeBlockDetector = null)
+    public LineSpacingDependencyRule(
+        ICodeBlockDetector? codeBlockDetector = null,
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<LineSpacingDependencyRuleOptions>? options = null)
     {
+        var lineSpacingOptions = options ?? Options.Create(new LineSpacingDependencyRuleOptions());
+
         _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                lineSpacingDependencyOptions: lineSpacingOptions);
+        _options = lineSpacingOptions.Value;
     }
 
     public IEnumerable<ValidationResult> Validate(
@@ -35,6 +50,9 @@ public class LineSpacingDependencyRule : IValidationRule
         UniversityConfig config,
         DocumentCommentService? documentCommentService)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
@@ -48,42 +66,58 @@ public class LineSpacingDependencyRule : IValidationRule
                 continue;
 
             var (lineSpacing, lineRule) = FormattingResolutionService.ResolveLineSpacing(doc, paragraph);
-            if (!IsLineSpacing15(lineSpacing, lineRule))
+            if (IsTargetLineSpacing(lineSpacing, lineRule))
                 continue;
 
-            var (spacingBefore, spacingAfter) = FormattingResolutionService.ResolveParagraphSpacing(doc, paragraph);
+            var preview = TextExtractionService.GetPreview(paragraph, config, 50);
+            if (string.IsNullOrWhiteSpace(preview))
+                continue;
 
-            if (spacingBefore != 0 || spacingAfter != 0)
-            {
-                var beforePt = UnitConversion.TwipsToPoints(spacingBefore);
-                var afterPt = UnitConversion.TwipsToPoints(spacingAfter);
-                var preview = TextExtractionService.GetPreview(paragraph, config, 50);
-                if (string.IsNullOrWhiteSpace(preview))
-                    continue;
+            var errorMessage = $"Paragraph line spacing must be {FormatRequiredLineSpacing()}. " +
+                               $"Found: {FormatLineSpacing(lineSpacing, lineRule)}.";
 
-                var errorMessage = $"Paragraph with 1.5 line spacing must have 0pt spacing before and after. " +
-                                   $"Found: Before={beforePt:F1}pt, After={afterPt:F1}pt.";
+            var result = ValidationResultFactory.ForParagraph(
+                Name,
+                config,
+                errorMessage,
+                paragraphIndex,
+                preview);
+            result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+            errors.Add(result);
 
-                errors.Add(ValidationResultFactory.ForParagraph(
-                    Name,
-                    config,
-                    errorMessage,
-                    paragraphIndex,
-                    preview));
-
-                documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
-            }
+            documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
         }
 
         return errors;
     }
 
-    private static bool IsLineSpacing15(int? lineSpacing, LineSpacingRuleValues? lineRule)
+    private bool IsTargetLineSpacing(int? lineSpacing, LineSpacingRuleValues? lineRule)
     {
         if (!lineSpacing.HasValue)
             return false;
 
         return (lineRule == null || lineRule == LineSpacingRuleValues.Auto)
-            && lineSpacing.Value == LineSpacing15;
+            && lineSpacing.Value == _options.TargetLineSpacingTwips;
+    }
+
+    private string FormatRequiredLineSpacing()
+    {
+        return FormatAutoLineSpacing(_options.TargetLineSpacingTwips);
+    }
+
+    private static string FormatLineSpacing(int? lineSpacing, LineSpacingRuleValues? lineRule)
+    {
+        if (!lineSpacing.HasValue)
+            return "not set";
+
+        if (lineRule is null || lineRule == LineSpacingRuleValues.Auto)
+            return FormatAutoLineSpacing(lineSpacing.Value);
+
+        return $"{lineSpacing.Value} with {lineRule.Value} line rule";
+    }
+
+    private static string FormatAutoLineSpacing(int lineSpacing)
+    {
+        return $"{lineSpacing / 240.0:F1}";
     }
 }

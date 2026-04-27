@@ -14,7 +14,7 @@ public class LineSpacingDependencyRuleTests
     private static UniversityConfig CreateConfig() => new();
 
     private static InMemoryDocx CreateDocxWithLineSpacing(
-        int lineValue,
+        int? lineValue,
         LineSpacingRuleValues? lineRule,
         int? beforeTwips,
         int? afterTwips,
@@ -26,7 +26,10 @@ public class LineSpacingDependencyRuleTests
         var mainPart = doc.AddMainDocumentPart();
         mainPart.Document = new Document(new Body());
 
-        var spacing = new SpacingBetweenLines { Line = lineValue.ToString() };
+        var spacing = new SpacingBetweenLines();
+
+        if (lineValue.HasValue)
+            spacing.Line = lineValue.Value.ToString();
 
         if (lineRule.HasValue)
             spacing.LineRule = lineRule.Value;
@@ -54,26 +57,23 @@ public class LineSpacingDependencyRuleTests
     }
 
     [Fact]
-    public void LineSpacing15_WithSpacingAfter_ReturnsError()
+    public void LineSpacing15_WithSpacingAfter_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Auto, null, 4000);
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
-        Assert.Single(errors);
-        Assert.Contains("1.5 line spacing", errors[0].Message);
-        Assert.Contains("After=200", errors[0].Message);
+        Assert.Empty(errors);
     }
 
     [Fact]
-    public void LineSpacing15_WithSpacingBefore_ReturnsError()
+    public void LineSpacing15_WithSpacingBefore_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Auto, 120, 0);
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
-        Assert.Single(errors);
-        Assert.Contains("Before=6", errors[0].Message);
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -97,40 +97,64 @@ public class LineSpacingDependencyRuleTests
     }
 
     [Fact]
-    public void SingleLineSpacing_WithSpacingAfter_ReturnsNoErrors()
+    public void SingleLineSpacing_WithSpacingAfter_ReturnsError()
     {
         using var docx = CreateDocxWithLineSpacing(240, LineSpacingRuleValues.Auto, null, 120);
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
-        Assert.Empty(errors);
+        Assert.Single(errors);
+        Assert.Contains("line spacing must be 1.5", errors[0].Message);
+        Assert.Contains("Found: 1.0", errors[0].Message);
     }
 
     [Fact]
-    public void DoubleLineSpacing_WithSpacingAfter_ReturnsNoErrors()
+    public void DoubleLineSpacing_WithSpacingAfter_ReturnsError()
     {
         using var docx = CreateDocxWithLineSpacing(480, LineSpacingRuleValues.Auto, null, 120);
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
-        Assert.Empty(errors);
+        Assert.Single(errors);
+        Assert.Contains("Found: 2.0", errors[0].Message);
     }
 
     [Fact]
-    public void LineSpacing15_With6ptSpacing_ReturnsError()
+    public void LineSpacing15_With6ptSpacing_ReturnsNoErrors()
     {
         using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Auto, null, 120);
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void MissingLineSpacing_ReturnsError()
+    {
+        using var docx = CreateDocxWithLineSpacing(null, null, null, null);
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
         Assert.Single(errors);
-        Assert.Contains("After=6", errors[0].Message);
+        Assert.Contains("Found: not set", errors[0].Message);
+    }
+
+    [Fact]
+    public void ExactLineRule_ReturnsError()
+    {
+        using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Exact, null, null);
+
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
+
+        Assert.Single(errors);
+        Assert.Contains("Exact line rule", errors[0].Message);
     }
 
     [Fact]
     public void ExcludedStylePattern_ReturnsNoErrors()
     {
-        using var docx = CreateDocxWithLineSpacing(360, LineSpacingRuleValues.Auto, null, 120, "Caption");
+        using var docx = CreateDocxWithLineSpacing(240, LineSpacingRuleValues.Auto, null, 120, "Caption");
 
         var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
@@ -138,12 +162,11 @@ public class LineSpacingDependencyRuleTests
     }
 
     [Fact]
-    public void HelloDocx_ListStyleParagraphsAreExcluded()
+    public void ExcludedListStyleParagraphsAreSkipped()
     {
-        using var doc = WordprocessingDocument.Open(
-            @"C:\Users\envv\Documents\GitHub\thesis-validator\backend.Tests\Fixtures\hello.docx", false);
+        using var docx = CreateDocxWithLineSpacing(240, LineSpacingRuleValues.Auto, null, 120, "ListParagraph");
 
-        var errors = _rule.Validate(doc, CreateConfig(), null).ToList();
+        var errors = _rule.Validate(docx.Document, CreateConfig(), null).ToList();
 
         Assert.Empty(errors);
     }

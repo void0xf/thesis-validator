@@ -15,12 +15,20 @@ public class FormattingResolutionServiceTests
             new Paragraph(
                 new ParagraphProperties(
                     new Justification { Val = JustificationValues.Center },
-                    new SpacingBetweenLines { After = "120" }),
+                    new SpacingBetweenLines
+                    {
+                        After = "120",
+                        Line = "360",
+                        LineRule = LineSpacingRuleValues.Auto
+                    }),
                 new Run(new Text("Body"))));
         var paragraph = GetOnlyParagraph(docx.Document);
+        var (lineSpacing, lineRule) = FormattingResolutionService.ResolveLineSpacing(docx.Document, paragraph);
 
         Assert.Equal(JustificationValues.Center, FormattingResolutionService.ResolveJustification(docx.Document, paragraph));
         Assert.Equal(120, FormattingResolutionService.ResolveSpacingAfter(docx.Document, paragraph));
+        Assert.Equal(360, lineSpacing);
+        Assert.Equal(LineSpacingRuleValues.Auto, lineRule);
     }
 
     [Fact]
@@ -31,7 +39,12 @@ public class FormattingResolutionServiceTests
                 new Style(
                     new StyleParagraphProperties(
                         new Justification { Val = JustificationValues.Both },
-                        new SpacingBetweenLines { After = "120" },
+                        new SpacingBetweenLines
+                        {
+                            After = "120",
+                            Line = "360",
+                            LineRule = LineSpacingRuleValues.Auto
+                        },
                         new Indentation { FirstLine = "567" }),
                     new StyleRunProperties(new FontSize { Val = "28" }))
                 {
@@ -49,6 +62,9 @@ public class FormattingResolutionServiceTests
 
         Assert.Equal(JustificationValues.Both, FormattingResolutionService.ResolveJustification(docx.Document, paragraph));
         Assert.Equal(120, FormattingResolutionService.ResolveSpacingAfter(docx.Document, paragraph));
+        var (lineSpacing, lineRule) = FormattingResolutionService.ResolveLineSpacing(docx.Document, paragraph);
+        Assert.Equal(360, lineSpacing);
+        Assert.Equal(LineSpacingRuleValues.Auto, lineRule);
         Assert.Equal(567, FormattingResolutionService.ResolveFirstLineIndent(docx.Document, paragraph));
         Assert.Equal(14.0, FormattingResolutionService.ResolveFontSizePt(docx.Document, paragraph, run));
     }
@@ -59,7 +75,12 @@ public class FormattingResolutionServiceTests
         using var docx = CreateDocxWithStyles(
             new Styles(
                 new Style(
-                    new StyleParagraphProperties(new SpacingBetweenLines { After = "240" }))
+                    new StyleParagraphProperties(new SpacingBetweenLines
+                    {
+                        After = "240",
+                        Line = "360",
+                        LineRule = LineSpacingRuleValues.Auto
+                    }))
                 {
                     Type = StyleValues.Paragraph,
                     Default = true,
@@ -69,6 +90,9 @@ public class FormattingResolutionServiceTests
         var paragraph = GetOnlyParagraph(docx.Document);
 
         Assert.Equal(240, FormattingResolutionService.ResolveSpacingAfter(docx.Document, paragraph));
+        var (lineSpacing, lineRule) = FormattingResolutionService.ResolveLineSpacing(docx.Document, paragraph);
+        Assert.Equal(360, lineSpacing);
+        Assert.Equal(LineSpacingRuleValues.Auto, lineRule);
     }
 
     [Fact]
@@ -82,7 +106,12 @@ public class FormattingResolutionServiceTests
                     new ParagraphPropertiesDefault(
                         new ParagraphPropertiesBaseStyle(
                             new Justification { Val = JustificationValues.Both },
-                            new SpacingBetweenLines { After = "80" })))),
+                            new SpacingBetweenLines
+                            {
+                                After = "80",
+                                Line = "360",
+                                LineRule = LineSpacingRuleValues.Auto
+                            })))),
             styleId: null);
         var paragraph = GetOnlyParagraph(docx.Document);
         var run = paragraph.Elements<Run>().Single();
@@ -90,6 +119,9 @@ public class FormattingResolutionServiceTests
         Assert.Equal(12.0, FormattingResolutionService.ResolveFontSizePt(docx.Document, paragraph, run));
         Assert.Equal(JustificationValues.Both, FormattingResolutionService.ResolveJustification(docx.Document, paragraph));
         Assert.Equal(80, FormattingResolutionService.ResolveSpacingAfter(docx.Document, paragraph));
+        var (lineSpacing, lineRule) = FormattingResolutionService.ResolveLineSpacing(docx.Document, paragraph);
+        Assert.Equal(360, lineSpacing);
+        Assert.Equal(LineSpacingRuleValues.Auto, lineRule);
     }
 
     private static Paragraph GetOnlyParagraph(WordprocessingDocument doc)

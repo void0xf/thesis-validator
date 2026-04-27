@@ -15,17 +15,20 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly FontFamilyRuleOptions _fontFamilyOptions;
     private readonly HeadingStyleUsageRuleOptions _headingStyleUsageOptions;
     private readonly HierarchyDepthRuleOptions _hierarchyDepthOptions;
+    private readonly LineSpacingDependencyRuleOptions _lineSpacingDependencyOptions;
 
     public RuleConfigurationService(
         IOptions<EmptySectionStructureRuleOptions> emptySectionOptions,
         IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null,
         IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null,
-        IOptions<HierarchyDepthRuleOptions>? hierarchyDepthOptions = null)
+        IOptions<HierarchyDepthRuleOptions>? hierarchyDepthOptions = null,
+        IOptions<LineSpacingDependencyRuleOptions>? lineSpacingDependencyOptions = null)
     {
         _emptySectionOptions = emptySectionOptions.Value;
         _fontFamilyOptions = fontFamilyOptions?.Value ?? new FontFamilyRuleOptions();
         _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
         _hierarchyDepthOptions = hierarchyDepthOptions?.Value ?? new HierarchyDepthRuleOptions();
+        _lineSpacingDependencyOptions = lineSpacingDependencyOptions?.Value ?? new LineSpacingDependencyRuleOptions();
     }
 
     public bool IsRuleAvailable(string ruleId)
@@ -41,6 +44,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsHierarchyDepthRule(ruleId))
             return _hierarchyDepthOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsLineSpacingDependencyRule(ruleId))
+            return _lineSpacingDependencyOptions.Availability != RuleAvailability.Hidden;
 
         return true;
     }
@@ -62,6 +68,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsHierarchyDepthRule(ruleId))
             return ValidationSeverity.Normalize(_hierarchyDepthOptions.Severity.ToString());
 
+        if (IsLineSpacingDependencyRule(ruleId))
+            return ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString());
+
         return SeverityResolver.Resolve(ruleId, config, explicitSeverity);
     }
 
@@ -78,6 +87,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsHierarchyDepthRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_hierarchyDepthOptions.Severity.ToString()) };
+
+        if (IsLineSpacingDependencyRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString()) };
 
         return definition;
     }
@@ -111,6 +123,14 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             HierarchyDepthRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLineSpacingDependencyRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            LineSpacingDependencyRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 }

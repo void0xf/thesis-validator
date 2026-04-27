@@ -60,6 +60,12 @@ builder.Services.AddOptions<HierarchyDepthRuleOptions>()
         "HierarchyDepthRule:MaxAllowedLevel must be greater than 0.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<LineSpacingDependencyRuleOptions>()
+    .Bind(builder.Configuration.GetSection(LineSpacingDependencyRuleOptions.SectionName))
+    .Validate(options => options.TargetLineSpacingTwips > 0,
+        "LineSpacingDependencyRule:TargetLineSpacingTwips must be greater than 0.")
+    .ValidateOnStart();
+
 builder.Services.AddScoped<IRuleConfigurationService, RuleConfigurationService>();
 
 builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
