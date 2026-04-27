@@ -1,13 +1,16 @@
 using backend.Models;
+using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 using backend.Services.Analysis;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Formatting;
 using backend.Services.Results;
+using backend.Services.Rules;
 
 namespace Rules;
 
@@ -17,19 +20,31 @@ namespace Rules;
 /// </summary>
 public class NoDotsInTitlesRule : IValidationRule
 {
-    public string Name => "NoDotsInTitlesRule";
+    public const string RuleId = nameof(NoDotsInTitlesRule);
 
-    // Style patterns that this rule applies to (case-insensitive)
-    private static readonly string[] TargetStylePatterns =
-    [
-        "heading", "nagwek",           // Headings (EN/PL)
-        "title", "tytu",               // Title (EN/PL)
-        "subtitle", "podtytu",         // Subtitle (EN/PL)
-        "caption", "podpis"            // Caption (EN/PL)
-    ];
+    private readonly IRuleConfigurationService _ruleConfigurationService;
+    private readonly NoDotsInTitlesRuleOptions _options;
+
+    public string Name => RuleId;
+
+    public NoDotsInTitlesRule(
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<NoDotsInTitlesRuleOptions>? options = null)
+    {
+        var noDotsOptions = options ?? Options.Create(new NoDotsInTitlesRuleOptions());
+
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                noDotsInTitlesOptions: noDotsOptions);
+        _options = noDotsOptions.Value;
+    }
 
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config, DocumentCommentService? documentCommentService)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
         foreach (var (paragraph, paragraphIndex) in DocumentAnalysisScope.DescendantParagraphs(doc, config))
         {
@@ -51,12 +66,14 @@ public class NoDotsInTitlesRule : IValidationRule
 
                 var errorMessage = $"Title/Heading should not end with a period. Style: {styleId}. Text: \"{preview}\"";
 
-                errors.Add(ValidationResultFactory.ForParagraph(
+                var result = ValidationResultFactory.ForParagraph(
                     Name,
                     config,
                     errorMessage,
                     paragraphIndex,
-                    preview));
+                    preview);
+                result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+                errors.Add(result);
 
                 documentCommentService?.AddCommentToParagraph(doc, paragraph, errorMessage);
             }
@@ -65,14 +82,16 @@ public class NoDotsInTitlesRule : IValidationRule
         return errors;
     }
 
-    private static bool HasTargetStyle(Paragraph paragraph)
+    private bool HasTargetStyle(Paragraph paragraph)
     {
         var styleId = StyleResolutionService.GetParagraphStyleId(paragraph);
         if (string.IsNullOrEmpty(styleId))
             return false;
 
         var styleLower = styleId.ToLowerInvariant();
-        return TargetStylePatterns.Any(pattern => styleLower.Contains(pattern));
+        return (_options.TargetStylePatterns ?? [])
+            .Any(pattern => !string.IsNullOrWhiteSpace(pattern)
+                && styleLower.Contains(pattern.Trim().ToLowerInvariant()));
     }
 
     private static bool EndsWithSinglePeriod(string text)
