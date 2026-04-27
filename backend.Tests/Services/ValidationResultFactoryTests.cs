@@ -56,11 +56,11 @@ public class ValidationResultFactoryTests
     }
 
     [Fact]
-    public void RuleCatalog_KeepsManualTocAsNonSelectableWarning()
+    public void RuleCatalog_KeepsManualTocAsSelectableWarning()
     {
         var definition = RuleCatalog.GetDefinition("Manual table of contents");
 
-        Assert.False(definition.Selectable);
+        Assert.True(definition.Selectable);
         Assert.Equal("Warning", definition.DefaultSeverity);
         Assert.Equal("Structure", definition.Category);
     }

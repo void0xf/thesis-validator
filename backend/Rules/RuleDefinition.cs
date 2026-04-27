@@ -105,15 +105,14 @@ public static class RuleCatalog
                 ValidationSeverity.Warning),
             ["CheckTableOfContents"] = new(
                 "CheckTableOfContents",
-                "Table of Contents",
+                "Automatic Table of Contents",
                 RuleCategories.Structure,
                 ValidationSeverity.Error),
             ["Manual table of contents"] = new(
                 "Manual table of contents",
-                "Manual table of contents",
+                "Manual Table of Contents",
                 RuleCategories.Structure,
-                ValidationSeverity.Warning,
-                Selectable: false),
+                ValidationSeverity.Warning),
             ["EmptySectionStructureRule"] = new(
                 "EmptySectionStructureRule",
                 "Empty Sections",
