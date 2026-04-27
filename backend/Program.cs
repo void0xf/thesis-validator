@@ -66,6 +66,10 @@ builder.Services.AddOptions<LineSpacingDependencyRuleOptions>()
         "LineSpacingDependencyRule:TargetLineSpacingTwips must be greater than 0.")
     .ValidateOnStart();
 
+builder.Services.AddOptions<MissingFigureCaptionRuleOptions>()
+    .Bind(builder.Configuration.GetSection(MissingFigureCaptionRuleOptions.SectionName))
+    .ValidateOnStart();
+
 builder.Services.AddOptions<ListPunctuationConsistencyRuleOptions>()
     .Bind(builder.Configuration.GetSection(ListPunctuationConsistencyRuleOptions.SectionName))
     .ValidateOnStart();

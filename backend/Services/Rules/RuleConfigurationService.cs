@@ -16,6 +16,7 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly HeadingStyleUsageRuleOptions _headingStyleUsageOptions;
     private readonly HierarchyDepthRuleOptions _hierarchyDepthOptions;
     private readonly LineSpacingDependencyRuleOptions _lineSpacingDependencyOptions;
+    private readonly MissingFigureCaptionRuleOptions _missingFigureCaptionOptions;
     private readonly ListPunctuationConsistencyRuleOptions _listPunctuationConsistencyOptions;
     private readonly ListIndentationConsistencyRuleOptions _listIndentationConsistencyOptions;
 
@@ -25,6 +26,7 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null,
         IOptions<HierarchyDepthRuleOptions>? hierarchyDepthOptions = null,
         IOptions<LineSpacingDependencyRuleOptions>? lineSpacingDependencyOptions = null,
+        IOptions<MissingFigureCaptionRuleOptions>? missingFigureCaptionOptions = null,
         IOptions<ListPunctuationConsistencyRuleOptions>? listPunctuationConsistencyOptions = null,
         IOptions<ListIndentationConsistencyRuleOptions>? listIndentationConsistencyOptions = null)
     {
@@ -33,6 +35,7 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
         _hierarchyDepthOptions = hierarchyDepthOptions?.Value ?? new HierarchyDepthRuleOptions();
         _lineSpacingDependencyOptions = lineSpacingDependencyOptions?.Value ?? new LineSpacingDependencyRuleOptions();
+        _missingFigureCaptionOptions = missingFigureCaptionOptions?.Value ?? new MissingFigureCaptionRuleOptions();
         _listPunctuationConsistencyOptions = listPunctuationConsistencyOptions?.Value ?? new ListPunctuationConsistencyRuleOptions();
         _listIndentationConsistencyOptions = listIndentationConsistencyOptions?.Value ?? new ListIndentationConsistencyRuleOptions();
     }
@@ -53,6 +56,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsLineSpacingDependencyRule(ruleId))
             return _lineSpacingDependencyOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsMissingFigureCaptionRule(ruleId))
+            return _missingFigureCaptionOptions.Availability != RuleAvailability.Hidden;
 
         if (IsListPunctuationConsistencyRule(ruleId))
             return _listPunctuationConsistencyOptions.Availability != RuleAvailability.Hidden;
@@ -83,6 +89,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsLineSpacingDependencyRule(ruleId))
             return ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString());
 
+        if (IsMissingFigureCaptionRule(ruleId))
+            return ValidationSeverity.Normalize(_missingFigureCaptionOptions.Severity.ToString());
+
         if (IsListPunctuationConsistencyRule(ruleId))
             return ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString());
 
@@ -108,6 +117,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsLineSpacingDependencyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_lineSpacingDependencyOptions.Severity.ToString()) };
+
+        if (IsMissingFigureCaptionRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_missingFigureCaptionOptions.Severity.ToString()) };
 
         if (IsListPunctuationConsistencyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString()) };
@@ -155,6 +167,14 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             LineSpacingDependencyRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMissingFigureCaptionRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            MissingFigureCaptionRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 
