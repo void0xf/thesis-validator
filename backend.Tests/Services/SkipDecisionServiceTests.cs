@@ -59,21 +59,6 @@ public class SkipDecisionServiceTests
         Assert.Equal(SkipReason.TextBox, decision.Reason);
     }
 
-    [Fact]
-    public void ShouldSkipRun_WhenCodeFontSkippingEnabled_ReturnsCodeFontReason()
-    {
-        using var docx = CreateDocxWithRunFont("code", "Consolas");
-        var paragraph = docx.Document.MainDocumentPart!.Document.Body!.Elements<Paragraph>().Single();
-        var run = paragraph.Elements<Run>().Single();
-        var config = new UniversityConfig();
-        config.Analysis.SkipCodeFonts = true;
-
-        var decision = SkipDecisionService.ShouldSkipRun(docx.Document, paragraph, run, config);
-
-        Assert.True(decision.ShouldSkip);
-        Assert.Equal(SkipReason.CodeFont, decision.Reason);
-    }
-
     private static Paragraph CreateTocFieldParagraph()
     {
         return new Paragraph(
@@ -104,12 +89,4 @@ public class SkipDecisionServiceTests
         return new InMemoryDocx(doc, stream);
     }
 
-    private static InMemoryDocx CreateDocxWithRunFont(string text, string fontFamily)
-    {
-        return CreateDocx(
-            new Paragraph(
-                new Run(
-                    new RunProperties(new RunFonts { Ascii = fontFamily, HighAnsi = fontFamily }),
-                    new Text(text))));
-    }
 }

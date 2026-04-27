@@ -53,7 +53,7 @@ public class TextExtractionSkipBehaviorTests
     }
 
     [Fact]
-    public void GetParagraphText_WhenCodeFontSkippingEnabled_ExcludesConfiguredCodeFontRuns()
+    public void GetParagraphText_PreservesInlineCodeFontRuns()
     {
         using var docx = CreateDocxWithRuns(
             ("body ", "Times New Roman"),
@@ -61,11 +61,10 @@ public class TextExtractionSkipBehaviorTests
             (" text", "Times New Roman"));
         var paragraph = docx.Document.MainDocumentPart!.Document.Body!.Elements<Paragraph>().Single();
         var config = new UniversityConfig();
-        config.Analysis.SkipCodeFonts = true;
 
         var text = TextExtractionService.GetParagraphText(docx.Document, paragraph, config);
 
-        Assert.Equal("body  text", text);
+        Assert.Equal("body code text", text);
     }
 
     private static Paragraph CreateTextBoxParagraph(string text)
