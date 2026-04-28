@@ -1,10 +1,13 @@
 using backend.Models;
+using backend.RuleOptions;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Results;
+using backend.Services.Rules;
 using backend.Services.Structure;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Rules;
@@ -14,9 +17,25 @@ namespace backend.Rules;
 /// </summary>
 public class FigureCaptionPositionRule : IValidationRule
 {
+    public const string RuleId = nameof(FigureCaptionPositionRule);
+
+    private readonly IRuleConfigurationService _ruleConfigurationService;
+
+    public FigureCaptionPositionRule(
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<FigureCaptionPositionRuleOptions>? options = null)
+    {
+        var figureCaptionPositionOptions = options ?? Options.Create(new FigureCaptionPositionRuleOptions());
+
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                figureCaptionPositionOptions: figureCaptionPositionOptions);
+    }
+
     // The validator infrastructure uses this identifier to label results
     // and to look up rule metadata/configuration.
-    public string Name => "FigureCaptionPositionRule";
+    public string Name => RuleId;
 
     public IEnumerable<ValidationResult> Validate(
         // OpenXML SDK representation of the .docx package. The rule reads
@@ -29,6 +48,9 @@ public class FigureCaptionPositionRule : IValidationRule
         // paragraph, so the issue is visible inside Microsoft Word as well.
         DocumentCommentService? commentService = null)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         // We collect every detected violation here and return them at the end.
         var errors = new List<ValidationResult>();
 
@@ -79,13 +101,15 @@ public class FigureCaptionPositionRule : IValidationRule
             //
             // ParagraphIndexKind.Descendant tells downstream consumers that this index
             // refers to the full document-order descendant paragraph traversal.
-            errors.Add(ValidationResultFactory.ForParagraph(
+            var result = ValidationResultFactory.ForParagraph(
                 Name,
                 config,
                 message,
                 association.Caption.ParagraphIndex,
                 preview,
-                ParagraphIndexKind.Descendant));
+                ParagraphIndexKind.Descendant);
+            result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+            errors.Add(result);
 
             // If commentService is not null, add a Word comment directly to the caption
             // paragraph. Under the hood, AddCommentToParagraph(...) creates/reuses the
