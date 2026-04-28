@@ -9,6 +9,9 @@ using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Language;
 using backend.Services.Results;
+using backend.RuleOptions;
+using backend.Services.Rules;
+using Microsoft.Extensions.Options;
 
 namespace backend.Rules;
 
@@ -17,18 +20,29 @@ namespace backend.Rules;
 /// </summary>
 public class GrammarRule : IValidationRule
 {
+    public const string RuleId = "Grammar";
+
     private readonly LanguageToolService _languageToolService;
     private readonly ICodeBlockDetector _codeBlockDetector;
+    private readonly IRuleConfigurationService _ruleConfigurationService;
 
     public GrammarRule(
         LanguageToolService languageToolService,
-        ICodeBlockDetector? codeBlockDetector = null)
+        ICodeBlockDetector? codeBlockDetector = null,
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<GrammarRuleOptions>? options = null)
     {
+        var grammarOptions = options ?? Options.Create(new GrammarRuleOptions());
+
         _languageToolService = languageToolService;
         _codeBlockDetector = codeBlockDetector ?? CodeBlockDetector.CreateDefault();
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                grammarOptions: grammarOptions);
     }
 
-    public string Name => "Grammar";
+    public string Name => RuleId;
 
     public IEnumerable<ValidationResult> Validate(WordprocessingDocument doc, UniversityConfig config)
     {
@@ -46,6 +60,9 @@ public class GrammarRule : IValidationRule
         DocumentCommentService? commentService)
     {
         var errors = new List<ValidationResult>();
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return errors;
+
         if (!await _languageToolService.IsAvailableAsync())
         {
             errors.Add(ValidationResultFactory.Create(
@@ -149,11 +166,7 @@ public class GrammarRule : IValidationRule
 
         var issueType = GetIssueType(match);
 
-        var severity = issueType == GrammarIssueType.Spelling || issueType == GrammarIssueType.Grammar
-            ? ValidationSeverity.Error
-            : ValidationSeverity.Warning;
-
-        return ValidationResultFactory.ForRun(
+        var result = ValidationResultFactory.ForRun(
             Name,
             config,
             $"{issueType}: {match.Message}{suggestionText}",
@@ -162,8 +175,9 @@ public class GrammarRule : IValidationRule
             match.Offset,
             match.Length,
             TextExtractionService.Truncate(errorText, 50),
-            ParagraphIndexKind.BodyElement,
-            severity);
+            ParagraphIndexKind.BodyElement);
+        result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+        return result;
     }
 
     private static GrammarIssueType GetIssueType(LanguageToolMatch match)
