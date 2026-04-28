@@ -23,6 +23,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly TocRuleOptions _tocOptions;
     private readonly ManualTableOfContentsRuleOptions _manualTableOfContentsOptions;
     private readonly MissingFigureCaptionRuleOptions _missingFigureCaptionOptions;
+    private readonly FigureCaptionPositionRuleOptions _figureCaptionPositionOptions;
+    private readonly FigureCaptionFormatRuleOptions _figureCaptionFormatOptions;
+    private readonly GrammarRuleOptions _grammarOptions;
     private readonly ListPunctuationConsistencyRuleOptions _listPunctuationConsistencyOptions;
     private readonly ListIndentationConsistencyRuleOptions _listIndentationConsistencyOptions;
 
@@ -39,6 +42,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         IOptions<TocRuleOptions>? tocOptions = null,
         IOptions<ManualTableOfContentsRuleOptions>? manualTableOfContentsOptions = null,
         IOptions<MissingFigureCaptionRuleOptions>? missingFigureCaptionOptions = null,
+        IOptions<FigureCaptionPositionRuleOptions>? figureCaptionPositionOptions = null,
+        IOptions<FigureCaptionFormatRuleOptions>? figureCaptionFormatOptions = null,
+        IOptions<GrammarRuleOptions>? grammarOptions = null,
         IOptions<ListPunctuationConsistencyRuleOptions>? listPunctuationConsistencyOptions = null,
         IOptions<ListIndentationConsistencyRuleOptions>? listIndentationConsistencyOptions = null)
     {
@@ -54,6 +60,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         _tocOptions = tocOptions?.Value ?? new TocRuleOptions();
         _manualTableOfContentsOptions = manualTableOfContentsOptions?.Value ?? new ManualTableOfContentsRuleOptions();
         _missingFigureCaptionOptions = missingFigureCaptionOptions?.Value ?? new MissingFigureCaptionRuleOptions();
+        _figureCaptionPositionOptions = figureCaptionPositionOptions?.Value ?? new FigureCaptionPositionRuleOptions();
+        _figureCaptionFormatOptions = figureCaptionFormatOptions?.Value ?? new FigureCaptionFormatRuleOptions();
+        _grammarOptions = grammarOptions?.Value ?? new GrammarRuleOptions();
         _listPunctuationConsistencyOptions = listPunctuationConsistencyOptions?.Value ?? new ListPunctuationConsistencyRuleOptions();
         _listIndentationConsistencyOptions = listIndentationConsistencyOptions?.Value ?? new ListIndentationConsistencyRuleOptions();
     }
@@ -95,6 +104,15 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsMissingFigureCaptionRule(ruleId))
             return _missingFigureCaptionOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsFigureCaptionPositionRule(ruleId))
+            return _figureCaptionPositionOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsFigureCaptionFormatRule(ruleId))
+            return _figureCaptionFormatOptions.Availability != RuleAvailability.Hidden;
+
+        if (IsGrammarRule(ruleId))
+            return _grammarOptions.Availability != RuleAvailability.Hidden;
 
         if (IsListPunctuationConsistencyRule(ruleId))
             return _listPunctuationConsistencyOptions.Availability != RuleAvailability.Hidden;
@@ -146,6 +164,15 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         if (IsMissingFigureCaptionRule(ruleId))
             return ValidationSeverity.Normalize(_missingFigureCaptionOptions.Severity.ToString());
 
+        if (IsFigureCaptionPositionRule(ruleId))
+            return ValidationSeverity.Normalize(_figureCaptionPositionOptions.Severity.ToString());
+
+        if (IsFigureCaptionFormatRule(ruleId))
+            return ValidationSeverity.Normalize(_figureCaptionFormatOptions.Severity.ToString());
+
+        if (IsGrammarRule(ruleId))
+            return ValidationSeverity.Normalize(_grammarOptions.Severity.ToString());
+
         if (IsListPunctuationConsistencyRule(ruleId))
             return ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString());
 
@@ -192,6 +219,15 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         if (IsMissingFigureCaptionRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_missingFigureCaptionOptions.Severity.ToString()) };
+
+        if (IsFigureCaptionPositionRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_figureCaptionPositionOptions.Severity.ToString()) };
+
+        if (IsFigureCaptionFormatRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_figureCaptionFormatOptions.Severity.ToString()) };
+
+        if (IsGrammarRule(definition.Id))
+            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_grammarOptions.Severity.ToString()) };
 
         if (IsListPunctuationConsistencyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_listPunctuationConsistencyOptions.Severity.ToString()) };
@@ -295,6 +331,30 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         return string.Equals(
             ruleId,
             MissingFigureCaptionRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFigureCaptionPositionRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            FigureCaptionPositionRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFigureCaptionFormatRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            FigureCaptionFormatRule.RuleId,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGrammarRule(string ruleId)
+    {
+        return string.Equals(
+            ruleId,
+            GrammarRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 

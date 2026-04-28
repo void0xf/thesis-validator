@@ -103,6 +103,18 @@ builder.Services.AddOptions<MissingFigureCaptionRuleOptions>()
     .Bind(builder.Configuration.GetSection(MissingFigureCaptionRuleOptions.SectionName))
     .ValidateOnStart();
 
+builder.Services.AddOptions<FigureCaptionPositionRuleOptions>()
+    .Bind(builder.Configuration.GetSection(FigureCaptionPositionRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<FigureCaptionFormatRuleOptions>()
+    .Bind(builder.Configuration.GetSection(FigureCaptionFormatRuleOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<GrammarRuleOptions>()
+    .Bind(builder.Configuration.GetSection(GrammarRuleOptions.SectionName))
+    .ValidateOnStart();
+
 builder.Services.AddOptions<ListPunctuationConsistencyRuleOptions>()
     .Bind(builder.Configuration.GetSection(ListPunctuationConsistencyRuleOptions.SectionName))
     .ValidateOnStart();
