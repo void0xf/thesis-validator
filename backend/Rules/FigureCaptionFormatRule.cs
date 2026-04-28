@@ -1,10 +1,13 @@
 using backend.Models;
+using backend.RuleOptions;
 using backend.Services.Comments;
 using backend.Services.Extraction;
 using backend.Services.Results;
+using backend.Services.Rules;
 using backend.Services.Structure;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Rules;
@@ -14,13 +17,32 @@ namespace backend.Rules;
 /// </summary>
 public class FigureCaptionFormatRule : IValidationRule
 {
-    public string Name => "FigureCaptionFormatRule";
+    public const string RuleId = nameof(FigureCaptionFormatRule);
+
+    private readonly IRuleConfigurationService _ruleConfigurationService;
+
+    public FigureCaptionFormatRule(
+        IRuleConfigurationService? ruleConfigurationService = null,
+        IOptions<FigureCaptionFormatRuleOptions>? options = null)
+    {
+        var figureCaptionFormatOptions = options ?? Options.Create(new FigureCaptionFormatRuleOptions());
+
+        _ruleConfigurationService = ruleConfigurationService
+            ?? new RuleConfigurationService(
+                Options.Create(new EmptySectionStructureRuleOptions()),
+                figureCaptionFormatOptions: figureCaptionFormatOptions);
+    }
+
+    public string Name => RuleId;
 
     public IEnumerable<ValidationResult> Validate(
         WordprocessingDocument doc,
         UniversityConfig config,
         DocumentCommentService? commentService = null)
     {
+        if (!_ruleConfigurationService.IsRuleAvailable(Name))
+            return [];
+
         var errors = new List<ValidationResult>();
 
         foreach (var caption in FigureCaptionDetector.GetDetectedFigureCaptions(doc, config))
@@ -53,12 +75,14 @@ public class FigureCaptionFormatRule : IValidationRule
         int paragraph,
         string text)
     {
-        return ValidationResultFactory.ForParagraph(
+        var result = ValidationResultFactory.ForParagraph(
             Name,
             config,
             message,
             paragraph,
             text,
             ParagraphIndexKind.Descendant);
+        result.Severity = _ruleConfigurationService.ResolveSeverity(Name, config);
+        return result;
     }
 }
