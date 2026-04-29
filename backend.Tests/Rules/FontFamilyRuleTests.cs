@@ -1,217 +1,149 @@
 using backend.Models;
+using backend.ModernServices;
+using backend.RuleOptions;
 using backend.Rules;
 using backend.Tests.Helpers;
-using Backend.Models;
+using Microsoft.Extensions.Options;
+using ThesisValidator.Rules;
 
 namespace backend.Tests.Rules;
 
 public class FontFamilyRuleTests
 {
-    private readonly FontFamilyValidationRule _rule = new();
-
-    private static UniversityConfig CreateConfig(string fontFamily = "Times New Roman")
-    {
-        return new UniversityConfig
-        {
-            Formatting = new FormattingConfig
-            {
-                Font = new FontConfig { FontFamily = fontFamily }
-            }
-        };
-    }
+    private readonly FontFamilyRule _rule = new();
 
     [Fact]
-    public void Validate_AllParagraphsWithCorrectFont_ReturnsNoErrors()
+    public void Validate_AllParagraphsWithCorrectFont_ReturnsNoProblems()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
             ("First paragraph", "Times New Roman"),
-            ("Second paragraph", "Times New Roman")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Second paragraph", "Times New Roman"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Empty(errors);
+        Assert.Empty(problems);
     }
 
     [Fact]
-    public void Validate_ParagraphWithWrongFont_ReturnsError()
+    public void Validate_ParagraphWithWrongFont_ReturnsProblem()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
             ("Correct font paragraph", "Times New Roman"),
-            ("Wrong font paragraph", "Arial")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Wrong font paragraph", "Arial"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Single(errors);
-        Assert.Contains("Arial", errors[0].Message);
-        Assert.Contains("Times New Roman", errors[0].Message);
-        Assert.True(errors[0].IsError);
+        var problem = Assert.Single(problems);
+        Assert.Contains("Arial", problem.Message);
+        Assert.Contains("Times New Roman", problem.Message);
     }
 
     [Fact]
-    public void Validate_MultipleParagraphsWithWrongFonts_ReturnsMultipleErrors()
+    public void Validate_MultipleParagraphsWithWrongFonts_ReturnsMultipleProblems()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
             ("Arial paragraph", "Arial"),
             ("Calibri paragraph", "Calibri"),
-            ("Correct paragraph", "Times New Roman")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Correct paragraph", "Times New Roman"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Equal(2, errors.Count);
-        Assert.Contains(errors, e => e.Message.Contains("Arial"));
-        Assert.Contains(errors, e => e.Message.Contains("Calibri"));
+        Assert.Equal(2, problems.Count);
+        Assert.Contains(problems, problem => problem.Message.Contains("Arial"));
+        Assert.Contains(problems, problem => problem.Message.Contains("Calibri"));
     }
 
     [Fact]
     public void Validate_WithDefaultFontStyle_UsesDefaultFont()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocxWithDefaultFont(
             "Times New Roman",
-            "Paragraph without explicit font"
-        );
-        var config = CreateConfig("Times New Roman");
+            "Paragraph without explicit font");
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Empty(errors);
+        Assert.Empty(problems);
     }
 
     [Fact]
-    public void Validate_ConfigWithDifferentExpectedFont_ValidatesAgainstConfigFont()
+    public void Validate_WithConfiguredRequiredFont_UsesConfiguredFont()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
-            ("Arial paragraph", "Arial")
-        );
-        var config = CreateConfig("Arial"); // Expecting Arial
+            ("Arial paragraph", "Arial"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions
+        {
+            RequiredFontFamily = "Arial"
+        }).ToList();
 
-        // Assert
-        Assert.Empty(errors); // Arial is now the expected font
-    }
-
-    [Fact]
-    public void Validate_CodeBlockParagraph_IsSkipped()
-    {
-        // Arrange
-        using var docx = DocxTestHelper.CreateInMemoryDocx(
-            ("public void ValidateDocument() { return; }", "Consolas")
-        );
-        var config = CreateConfig("Times New Roman");
-
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
-
-        // Assert
-        Assert.Empty(errors);
+        Assert.Empty(problems);
     }
 
     [Fact]
     public void Validate_EmptyParagraph_IsSkipped()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
             ("", "Arial"),
             ("   ", "Calibri"),
-            ("Valid text", "Times New Roman")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Valid text", "Times New Roman"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Empty(errors); // Empty/whitespace paragraphs should be skipped
+        Assert.Empty(problems);
     }
 
     [Fact]
-    public void Validate_ErrorContainsCorrectLocation()
+    public void Validate_ProblemContainsCorrectLocation()
     {
-        // Arrange
         using var docx = DocxTestHelper.CreateInMemoryDocx(
             ("First paragraph", "Times New Roman"),
-            ("Second paragraph with wrong font", "Arial")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Second paragraph with wrong font", "Arial"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Single(errors);
-        Assert.Equal(2, errors[0].Location.Paragraph);
-        Assert.Equal(1, errors[0].Location.Run);
-        Assert.Equal(0, errors[0].Location.CharacterOffset);
-        Assert.Equal("Second paragraph with wrong font".Length, errors[0].Location.Length);
-        Assert.Equal("Second paragraph with wrong font", errors[0].Location.Text);
-        Assert.True(errors[0].Location.PageNumber >= 1);
-        Assert.True(errors[0].Location.LineNumber >= 1);
+        var problem = Assert.Single(problems);
+        Assert.Equal(2, problem.Location.Paragraph);
+        Assert.Equal(1, problem.Location.Run);
+        Assert.Equal(0, problem.Location.CharacterOffset);
+        Assert.Equal("Second paragraph with wrong font".Length, problem.Location.Length);
+        Assert.Equal("Second paragraph with wrong font", problem.Location.Text);
+        Assert.Equal(ParagraphIndexKind.BodyElement, problem.ParagraphIndexKind);
+        Assert.IsType<RunAnnotationTarget>(problem.AnnotationTarget);
     }
 
     [Fact]
     public void Validate_LocationTracksCharacterOffset()
     {
-        // Arrange - Create doc with multiple runs in same paragraph
         using var docx = DocxTestHelper.CreateInMemoryDocxWithMultipleRuns(
             ("First run ", "Times New Roman"),
-            ("Second run with wrong font", "Arial")
-        );
-        var config = CreateConfig("Times New Roman");
+            ("Second run with wrong font", "Arial"));
 
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
+        var problems = Validate(docx, new FontFamilyRuleOptions()).ToList();
 
-        // Assert
-        Assert.Single(errors);
-        Assert.Equal(1, errors[0].Location.Paragraph);
-        Assert.Equal(2, errors[0].Location.Run);
-        Assert.Equal("First run ".Length, errors[0].Location.CharacterOffset);
+        var problem = Assert.Single(problems);
+        Assert.Equal(1, problem.Location.Paragraph);
+        Assert.Equal(2, problem.Location.Run);
+        Assert.Equal("First run ".Length, problem.Location.CharacterOffset);
     }
 
     [Fact]
-    public void Validate_LocationIncludesPageAndLine()
+    public void Validate_RuleDescriptorUsesFontFamilyRuleId()
     {
-        // Arrange
-        using var docx = DocxTestHelper.CreateInMemoryDocx(
-            ("Wrong font paragraph", "Arial")
-        );
-        var config = CreateConfig("Times New Roman");
-
-        // Act
-        var errors = _rule.Validate(docx.Document, config).ToList();
-
-        // Assert
-        Assert.Single(errors);
-        Assert.Equal(1, errors[0].Location.PageNumber);
-        Assert.Equal(1, errors[0].Location.LineNumber);
-        Assert.Contains("Page 1", errors[0].Location.Description);
-        Assert.Contains("Line 1", errors[0].Location.Description);
+        Assert.Equal("FontFamily", _rule.Descriptor.Name);
     }
 
-    [Fact]
-    public void Validate_RuleNameIsCorrect()
+    private IEnumerable<RuleProblem> Validate(
+        InMemoryDocx docx,
+        FontFamilyRuleOptions options)
     {
-        // Assert
-        Assert.Equal("FontFamily", _rule.Name);
+        var analyzer = new DocumentContentAnalyzer(new ModernDocumentSkipService(
+            Options.Create(new ModernValidationOptions())));
+        var context = new RuleContext
+        {
+            RawDocument = docx.Document,
+            Content = analyzer.Analyze(docx.Document)
+        };
+
+        return _rule.Validate(context, options);
     }
 }

@@ -17,7 +17,7 @@ public class FontExplorationTests
   [Fact]
   public void Explore_Fonts()
   {
-    using var doc = DocxTestHelper.OpenDocxAsRead("Fonts/fonts.docx");
+    using var doc = DocxTestHelper.OpenDocxAsRead("Fonts/Praca_Inzynierska_Tester_1_error.docx");
     var body = doc.MainDocumentPart.Document.Body;
 
     foreach (var paragraph in body.Elements<Paragraph>())
