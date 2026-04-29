@@ -29,8 +29,9 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     private readonly ListPunctuationConsistencyRuleOptions _listPunctuationConsistencyOptions;
     private readonly ListIndentationConsistencyRuleOptions _listIndentationConsistencyOptions;
 
+
     public RuleConfigurationService(
-        IOptions<EmptySectionStructureRuleOptions> emptySectionOptions,
+        IOptions<EmptySectionStructureRuleOptions>? emptySectionOptions = null,
         IOptions<FontFamilyRuleOptions>? fontFamilyOptions = null,
         IOptions<NoDotsInTitlesRuleOptions>? noDotsInTitlesOptions = null,
         IOptions<HeadingStyleUsageRuleOptions>? headingStyleUsageOptions = null,
@@ -48,7 +49,7 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         IOptions<ListPunctuationConsistencyRuleOptions>? listPunctuationConsistencyOptions = null,
         IOptions<ListIndentationConsistencyRuleOptions>? listIndentationConsistencyOptions = null)
     {
-        _emptySectionOptions = emptySectionOptions.Value;
+        _emptySectionOptions = emptySectionOptions?.Value ?? new EmptySectionStructureRuleOptions();
         _fontFamilyOptions = fontFamilyOptions?.Value ?? new FontFamilyRuleOptions();
         _noDotsInTitlesOptions = noDotsInTitlesOptions?.Value ?? new NoDotsInTitlesRuleOptions();
         _headingStyleUsageOptions = headingStyleUsageOptions?.Value ?? new HeadingStyleUsageRuleOptions();
@@ -128,8 +129,6 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
         UniversityConfig config,
         string? explicitSeverity = null)
     {
-        if (IsEmptySectionStructureRule(ruleId))
-            return ValidationSeverity.Normalize(_emptySectionOptions.Severity.ToString());
 
         if (IsFontFamilyRule(ruleId))
             return ValidationSeverity.Normalize(_fontFamilyOptions.Severity.ToString());
@@ -184,8 +183,6 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
     public RuleDefinition ApplyConfiguration(RuleDefinition definition)
     {
-        if (IsEmptySectionStructureRule(definition.Id))
-            return definition with { DefaultSeverity = ValidationSeverity.Normalize(_emptySectionOptions.Severity.ToString()) };
 
         if (IsFontFamilyRule(definition.Id))
             return definition with { DefaultSeverity = ValidationSeverity.Normalize(_fontFamilyOptions.Severity.ToString()) };
@@ -237,7 +234,6 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
 
         return definition;
     }
-
     private static bool IsEmptySectionStructureRule(string ruleId)
     {
         return string.Equals(
@@ -250,7 +246,7 @@ public sealed class RuleConfigurationService : IRuleConfigurationService
     {
         return string.Equals(
             ruleId,
-            FontFamilyValidationRule.RuleId,
+            FontFamilyRule.RuleId,
             StringComparison.OrdinalIgnoreCase);
     }
 

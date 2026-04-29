@@ -2,63 +2,123 @@
 using backend.Services.Comments;
 using backend.Services.Exceptions;
 using backend.Services.Extraction;
-using backend.Services.Rules;
 using backend.Services.Skipping;
 using backend.Services.Structure;
 using backend.RuleOptions;
 using Backend.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using ThesisValidator.Rules;
 
 namespace backend.Services.Analysis;
 
 public class ThesisValidatorService
 {
-    private readonly IReadOnlyList<IValidationRule> _ruleList;
-    private readonly IReadOnlySet<string> _ruleNames;
-    private readonly IRuleConfigurationService _ruleConfigurationService;
+    private readonly IReadOnlyList<IModernValidationRule> _modernRules;
+    private readonly RulePolicyResolver _policyResolver;
+    private readonly RuleOptionsBinder _optionsBinder;
+    private readonly ValidationResultComposer _resultComposer;
+    private readonly DocumentContentAnalyzer _contentAnalyzer;
 
-    public ThesisValidatorService(
-        IEnumerable<IValidationRule> rules,
-        IRuleConfigurationService? ruleConfigurationService = null)
+    public ThesisValidatorService(IEnumerable<IValidationRule> legacyRules)
+        : this(legacyRules, ruleConfigurationService: null)
     {
-        _ruleList = rules.ToList();
-        _ruleNames = _ruleList.Select(rule => rule.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _ruleConfigurationService = ruleConfigurationService
-            ?? new RuleConfigurationService(Options.Create(new EmptySectionStructureRuleOptions()));
     }
 
-    public IReadOnlyList<string> GetAvailableRuleNames()
+    public ThesisValidatorService(
+        IEnumerable<IValidationRule> legacyRules,
+        backend.Services.Rules.IRuleConfigurationService? ruleConfigurationService)
+        : this(
+            legacyRules.Select(rule => new LegacyModernRuleAdapter(rule)),
+            CreateDefaultPolicyResolver(),
+            new RuleOptionsBinder(CreateEmptyConfiguration()),
+            new ValidationResultComposer())
     {
-        return _ruleList.Select(rule => rule.Name).ToList();
+    }
+
+    public ThesisValidatorService(
+        IEnumerable<IModernValidationRule> modernRules,
+        RulePolicyResolver policyResolver,
+        RuleOptionsBinder optionsBinder,
+        ValidationResultComposer resultComposer,
+        DocumentContentAnalyzer? contentAnalyzer = null)
+    {
+        _modernRules = modernRules.ToList();
+        _policyResolver = policyResolver;
+        _optionsBinder = optionsBinder;
+        _resultComposer = resultComposer;
+        _contentAnalyzer = contentAnalyzer ?? new DocumentContentAnalyzer();
+
     }
 
     public IReadOnlyList<RuleDefinition> GetAvailableRules()
     {
-        return _ruleList
-            .Select(rule => RuleCatalog.GetDefinition(rule.Name))
-            .ToList();
+        var definitions = new List<RuleDefinition>();
+
+        foreach (var rule in _modernRules)
+        {
+            var descriptor = rule.Descriptor;
+            var policy = _policyResolver.Resolve(descriptor);
+            if (policy.Availability == RuleAvailability.Hidden)
+                continue;
+
+            definitions.Add(new RuleDefinition(
+                descriptor.Name,
+                descriptor.DisplayName,
+                descriptor.Category,
+                policy.Severity.ToString()));
+        }
+
+        return definitions;
     }
 
     public IReadOnlyList<string> GetUnknownRuleNames(IEnumerable<string> selectedRules)
     {
+        var knownRules = _modernRules
+            .Select(rule => rule.Descriptor.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         return selectedRules
-            .Where(ruleName => !_ruleNames.Contains(ruleName))
+            .Where(ruleName => !knownRules.Contains(ruleName))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    public (IEnumerable<ValidationResult> Results, List<HeadingInfo> Headings) Validate(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
+
+    public (IEnumerable<ValidationResult> Results, List<HeadingInfo> Headings)
+        Validate(Stream fileStream,
+        UniversityConfig config,
+        IEnumerable<string>? selectedRules = null)
     {
         using var doc = OpenDocument(fileStream, isEditable: false);
-        var rulesToRun = FilterRules(config, selectedRules);
-
         var errors = new List<ValidationResult>();
-        foreach (var rule in rulesToRun)
+        var content = _contentAnalyzer.Analyze(doc, config);
+
+
+        var context = new RuleContext
         {
-            errors.AddRange(rule.Validate(doc, config));
+            RawDocument = doc,
+            Content = content
+        };
+
+        foreach (var rule in GetAvailableRules(selectedRules))
+        {
+            var policy = _policyResolver.Resolve(rule.Descriptor);
+
+            if (policy.Availability == RuleAvailability.Hidden)
+                continue;
+
+            var options = _optionsBinder.Bind(rule);
+            var problems = rule.Validate(context, options);
+
+            foreach (var problem in problems)
+            {
+                errors.Add(_resultComposer.Compose(
+                    rule.Descriptor,
+                    policy,
+                    problem));
+            }
         }
 
         var headings = ExtractHeadings(doc, config);
@@ -67,6 +127,22 @@ public class ThesisValidatorService
 
         return (errors, headings);
     }
+    public IReadOnlyList<IModernValidationRule> GetAvailableRules(
+        IEnumerable<string>? selectedRules)
+    {
+        if (selectedRules is null)
+            return _modernRules;
+
+        var selectedSet = selectedRules.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (selectedSet.Count == 0)
+            return _modernRules;
+
+        return _modernRules
+            .Where(rule => selectedSet.Contains(rule.Descriptor.Name))
+            .ToList();
+    }
+
 
     public static List<HeadingInfo> ExtractHeadings(WordprocessingDocument doc, UniversityConfig? config = null)
     {
@@ -111,28 +187,52 @@ public class ThesisValidatorService
     /// Returns both the validation results and a stream containing the annotated document.
     /// </summary>
     public (IEnumerable<ValidationResult> Results, MemoryStream AnnotatedDocument)
-    ValidateWithComments(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
+        ValidateWithComments(Stream fileStream, UniversityConfig config, IEnumerable<string>? selectedRules = null)
     {
         using var memoryStream = new MemoryStream();
         fileStream.CopyTo(memoryStream);
         memoryStream.Position = 0;
 
         using var doc = OpenDocument(memoryStream, isEditable: true);
-        var commentService = new DocumentCommentService();
-        var rulesToRun = FilterRules(config, selectedRules);
+        var rulesToRun = GetAvailableRules(selectedRules);
 
-        var errors = new List<ValidationResult>();
+        var validationResults = new List<ValidationResult>();
+        var commentService = new DocumentCommentService();
+        var content = _contentAnalyzer.Analyze(doc, config);
+        var context = new RuleContext
+        {
+            RawDocument = doc,
+            Content = content
+        };
+
         foreach (var rule in rulesToRun)
         {
-            errors.AddRange(rule.Validate(doc, config, commentService));
+            var policy = _policyResolver.Resolve(rule.Descriptor);
+            if (policy.Availability == RuleAvailability.Hidden)
+                continue;
+
+            var options = _optionsBinder.Bind(rule);
+            var problems = rule.Validate(context, options);
+
+            foreach (var problem in problems)
+            {
+                validationResults.Add(_resultComposer.Compose(
+                    rule.Descriptor,
+                    policy,
+                    problem));
+                AddCommentForProblem(commentService, doc, problem);
+            }
         }
+
+        var (elementsMap, descendantsMap) = BuildSectionMaps(doc, config);
+        PopulateSectionContext(validationResults, elementsMap, descendantsMap);
 
         try
         {
             doc.MainDocumentPart?.Document.Save();
             var annotatedStream = DocumentCommentService.SaveDocumentWithComments(doc);
 
-            return (errors, annotatedStream);
+            return (validationResults, annotatedStream);
         }
         catch (Exception ex) when (IsDocumentProcessingException(ex))
         {
@@ -160,6 +260,22 @@ public class ThesisValidatorService
         catch (Exception ex) when (IsDocumentProcessingException(ex))
         {
             throw new InvalidThesisDocumentException("The uploaded file could not be opened as a DOCX document.", ex);
+        }
+    }
+
+    private static void AddCommentForProblem(
+        DocumentCommentService commentService,
+        WordprocessingDocument doc,
+        RuleProblem problem)
+    {
+        switch (problem.AnnotationTarget)
+        {
+            case ParagraphAnnotationTarget paragraphTarget:
+                commentService.AddCommentToParagraph(doc, paragraphTarget.Paragraph, problem.Message);
+                break;
+            case RunAnnotationTarget runTarget:
+                commentService.AddCommentToRun(doc, runTarget.Run, problem.Message);
+                break;
         }
     }
 
@@ -255,31 +371,56 @@ public class ThesisValidatorService
         return nearest;
     }
 
-    private IReadOnlyList<IValidationRule> FilterRules(
-        UniversityConfig config,
-        IEnumerable<string>? selectedRules)
+    private static RulePolicyResolver CreateDefaultPolicyResolver()
     {
-        IReadOnlyList<IValidationRule> candidates;
-        if (selectedRules is null)
-        {
-            candidates = _ruleList;
-        }
-        else
-        {
-            var selectedSet = selectedRules.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            candidates = selectedSet.Count == 0
-                ? _ruleList
-                : _ruleList.Where(rule => selectedSet.Contains(rule.Name)).ToList();
-        }
-
-        return candidates
-            .Where(IsExecutableRule)
-            .ToList();
+        return new RulePolicyResolver(CreateEmptyConfiguration());
     }
 
-    private bool IsExecutableRule(IValidationRule rule)
+    private static IConfiguration CreateEmptyConfiguration()
     {
-        return _ruleConfigurationService.IsRuleAvailable(rule.Name);
+        return new ConfigurationBuilder().Build();
     }
+
+    private sealed class LegacyModernRuleAdapter : ValidationRule<NoRuleOptions>
+    {
+        private readonly IValidationRule _rule;
+
+        public LegacyModernRuleAdapter(IValidationRule rule)
+        {
+            _rule = rule;
+        }
+
+        public override RuleDescriptor Descriptor
+        {
+            get
+            {
+                var definition = RuleCatalog.GetDefinition(_rule.Name);
+                return new RuleDescriptor(
+                    Name: definition.Id,
+                    DisplayName: definition.DisplayName,
+                    Description: definition.DisplayName,
+                    Category: definition.Category,
+                    DefaultAvailability: RuleAvailability.Available,
+                    DefaultSeverity: Enum.TryParse<RuleSeverity>(
+                        definition.DefaultSeverity,
+                        ignoreCase: true,
+                        out var severity)
+                            ? severity
+                            : RuleSeverity.Error);
+            }
+        }
+
+        public override IEnumerable<RuleProblem> Validate(
+            RuleContext context,
+            NoRuleOptions options)
+        {
+            return _rule
+                .Validate(context.RawDocument, new UniversityConfig())
+                .Select(result => new RuleProblem(
+                    result.Message,
+                    result.Location,
+                    result.ParagraphIndexKind));
+        }
+    }
+
 }
-

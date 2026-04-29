@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using backend.Endpoints;
 using backend.Models;
+using backend.ModernServices;
 using backend.Services.Analysis;
 using backend.Services.Comments;
 using backend.Services.Rules;
@@ -10,6 +11,8 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Tests.Rules;
@@ -30,8 +33,7 @@ internal static class RuleConfigurationTestSupport
             null,
             new object?[]
             {
-                new ThesisValidatorService(rules, ruleConfigurationService),
-                ruleConfigurationService
+                CreateModernValidator(rules)
             });
 
         return Assert.IsAssignableFrom<IResult>(result);
@@ -71,6 +73,48 @@ internal static class RuleConfigurationTestSupport
         Assert.NotNull(rules);
 
         return ((IEnumerable)rules).Cast<object>();
+    }
+
+    private static ModernThesisValidatorService CreateModernValidator(IEnumerable<IValidationRule> rules)
+    {
+        var configuration = new ConfigurationBuilder().Build();
+        var policyResolver = new RulePolicyResolver(configuration);
+        var optionsBinder = new RuleOptionsBinder(configuration);
+        var resultComposer = new ValidationResultComposer();
+        var modernRules = rules.Select(rule => new LegacyRuleDescriptorAdapter(rule.Name)).ToList();
+
+        return new ModernThesisValidatorService(
+            new ModernDocumentSession(),
+            new backend.ModernServices.DocumentContentAnalyzer(new ModernDocumentSkipService(
+                Options.Create(new ModernValidationOptions()))),
+            new ModernRuleRunner(modernRules, policyResolver, optionsBinder, resultComposer),
+            new ModernSectionContextService(),
+            new ModernAnnotationApplier());
+    }
+
+    private sealed class LegacyRuleDescriptorAdapter : ValidationRule<NoRuleOptions>
+    {
+        private readonly string _name;
+
+        public LegacyRuleDescriptorAdapter(string name)
+        {
+            _name = name;
+        }
+
+        public override RuleDescriptor Descriptor => new(
+            Name: _name,
+            DisplayName: _name,
+            Description: _name,
+            Category: RuleCategories.Formatting,
+            DefaultAvailability: backend.RuleOptions.RuleAvailability.Available,
+            DefaultSeverity: backend.RuleOptions.RuleSeverity.Error);
+
+        public override IEnumerable<RuleProblem> Validate(
+            RuleContext context,
+            NoRuleOptions options)
+        {
+            return [];
+        }
     }
 }
 

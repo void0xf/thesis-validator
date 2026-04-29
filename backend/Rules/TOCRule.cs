@@ -27,9 +27,7 @@ public class TocRule : IValidationRule
         var tocOptions = options ?? Options.Create(new TocRuleOptions());
 
         _ruleConfigurationService = ruleConfigurationService
-            ?? new RuleConfigurationService(
-                Options.Create(new EmptySectionStructureRuleOptions()),
-                tocOptions: tocOptions);
+            ?? new RuleConfigurationService(tocOptions: tocOptions);
     }
 
     public IEnumerable<ValidationResult> Validate(
