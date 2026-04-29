@@ -1,5 +1,4 @@
 using backend.Models;
-using Backend.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,9 +12,7 @@ internal static class DocumentEndpointResults
 
     public static DocumentValidationResponse CreateValidationResponse(
         DocumentUploadRequest request,
-        UniversityConfig config,
-        IReadOnlyList<ValidationResult> results,
-        List<HeadingInfo> headings)
+        IReadOnlyList<ValidationResult> results)
     {
         return new DocumentValidationResponse
         {
@@ -25,9 +22,7 @@ internal static class DocumentEndpointResults
             IsValid = !results.Any(r => r.IsError),
             TotalErrors = results.Count(r => r.IsError),
             TotalWarnings = results.Count(r => !r.IsError),
-            Results = results.ToList(),
-            ConfigUsed = config.Name,
-            Headings = headings
+            Results = results.ToList()
         };
     }
 

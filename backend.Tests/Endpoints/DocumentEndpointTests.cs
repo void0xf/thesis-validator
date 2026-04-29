@@ -1,15 +1,13 @@
 using System.Reflection;
+using backend.ModernServices;
 using backend.Models;
 using backend.Endpoints;
-using Backend.Models;
-using DocumentFormat.OpenXml.Packaging;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
-using backend.Services.Analysis;
-using backend.Services.Comments;
 
 namespace backend.Tests.Endpoints;
 
@@ -88,7 +86,7 @@ public class DocumentEndpointTests
             problem.Detail);
     }
 
-    private static IResult InvokeEndpoint(string methodName, string? rules, params IValidationRule[] availableRules)
+    private static IResult InvokeEndpoint(string methodName, string? rules, params IModernValidationRule[] availableRules)
     {
         var method = typeof(DocumentEndpoint).GetMethod(
             methodName,
@@ -102,10 +100,7 @@ public class DocumentEndpointTests
             {
                 CreateDocxFile(),
                 rules,
-                null,
-                null,
-                new ThesisValidatorService(availableRules),
-                Options.Create(new UniversityConfig()),
+                CreateValidator(availableRules),
                 NullLoggerFactory.Instance
             });
 
@@ -128,21 +123,44 @@ public class DocumentEndpointTests
         return Assert.IsType<ProblemDetails>(value);
     }
 
-    private sealed class TestValidationRule : IValidationRule
+    private static ModernThesisValidatorService CreateValidator(params IModernValidationRule[] rules)
     {
+        var configuration = new ConfigurationBuilder().Build();
+        var policyResolver = new RulePolicyResolver(configuration);
+        var optionsBinder = new RuleOptionsBinder(configuration);
+        var resultComposer = new ValidationResultComposer();
+
+        return new ModernThesisValidatorService(
+            new ModernDocumentSession(),
+            new DocumentContentAnalyzer(new ModernDocumentSkipService(
+                Options.Create(new ModernValidationOptions()))),
+            new ModernRuleRunner(rules, policyResolver, optionsBinder, resultComposer),
+            new ModernSectionContextService(),
+            new ModernAnnotationApplier());
+    }
+
+    private sealed class TestValidationRule : ValidationRule<NoRuleOptions>
+    {
+        private readonly string _name;
+
         public TestValidationRule(string name)
         {
-            Name = name;
+            _name = name;
         }
 
-        public string Name { get; }
+        public override RuleDescriptor Descriptor => new(
+            Name: _name,
+            DisplayName: _name,
+            Description: _name,
+            Category: RuleCategories.Formatting,
+            DefaultAvailability: backend.RuleOptions.RuleAvailability.Available,
+            DefaultSeverity: backend.RuleOptions.RuleSeverity.Error);
 
-        public IEnumerable<ValidationResult> Validate(
-            WordprocessingDocument doc,
-            UniversityConfig config,
-            DocumentCommentService? documentCommentService = null)
+        public override IEnumerable<RuleProblem> Validate(
+            RuleContext context,
+            NoRuleOptions options)
         {
-            return Array.Empty<ValidationResult>();
+            return [];
         }
     }
 }

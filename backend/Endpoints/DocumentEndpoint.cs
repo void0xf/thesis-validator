@@ -1,10 +1,7 @@
 using backend.Models;
-using Backend.Models;
+using backend.ModernServices;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using backend.Services.Analysis;
 using backend.Services.Exceptions;
-using backend.Services.Rules;
 
 namespace backend.Endpoints;
 
@@ -47,19 +44,14 @@ public static class DocumentEndpoint
     private static IResult ValidateDocument(
         IFormFile? file,
         [FromForm] string? rules,
-        [FromForm] bool? skipBeforeTableOfContents,
-        [FromForm] bool? skipTextBoxes,
-        ThesisValidatorService thesisValidatorService,
-        IOptions<UniversityConfig> universityConfigOptions,
+        ModernThesisValidatorService modernValidator,
         ILoggerFactory loggerFactory)
     {
         if (!DocumentUploadRequestValidator
                 .TryValidate(
-                    file, 
-                    rules, 
-                    skipBeforeTableOfContents, 
-                    skipTextBoxes, 
-                    thesisValidatorService, out var request, out var error))
+                    file,
+                    rules,
+                    modernValidator, out var request, out var error))
         {
             return error!;
         }
@@ -67,12 +59,13 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var config = CreateRequestConfig(universityConfigOptions.Value, request);
-            var (validationResults, headings) = thesisValidatorService
-                .Validate(stream, config, request.SelectedRules);
+            var validationResults = modernValidator.Validate(stream, request.SelectedRules);
             var results = validationResults.ToList();
 
-            var response = DocumentEndpointResults.CreateValidationResponse(request, config, results, headings);
+            var response = DocumentEndpointResults
+                .CreateValidationResponse(
+                    request, results);
+
             return Results.Ok(response);
         }
         catch (InvalidThesisDocumentException ex)
@@ -88,13 +81,10 @@ public static class DocumentEndpoint
     private static IResult ValidateWithComments(
         IFormFile? file,
         [FromForm] string? rules,
-        [FromForm] bool? skipBeforeTableOfContents,
-        [FromForm] bool? skipTextBoxes,
-        ThesisValidatorService thesisValidatorService,
-        IOptions<UniversityConfig> universityConfigOptions,
+        ModernThesisValidatorService modernValidator,
         ILoggerFactory loggerFactory)
     {
-        if (!DocumentUploadRequestValidator.TryValidate(file, rules, skipBeforeTableOfContents, skipTextBoxes, thesisValidatorService, out var request, out var error))
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, modernValidator, out var request, out var error))
         {
             return error!;
         }
@@ -102,8 +92,7 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var config = CreateRequestConfig(universityConfigOptions.Value, request);
-            var (_, annotatedDocument) = thesisValidatorService.ValidateWithComments(stream, config, request.SelectedRules);
+            var (_, annotatedDocument) = modernValidator.ValidateWithComments(stream, request.SelectedRules);
 
             var outputFileName = DocumentEndpointResults.GetAnnotatedFileName(request.FileName);
 
@@ -124,24 +113,22 @@ public static class DocumentEndpoint
     }
 
     private static IResult GetAvailableRules(
-        ThesisValidatorService thesisValidatorService,
-        IRuleConfigurationService ruleConfigurationService)
+        ModernThesisValidatorService modernValidator)
     {
-        var ruleList = thesisValidatorService.GetAvailableRules()
-            .Where(rule => ruleConfigurationService.IsRuleAvailable(rule.Id))
-            .Select(ruleConfigurationService.ApplyConfiguration)
-            .Select(rule => new
-            {
-                Name = rule.Id,
-                rule.DisplayName,
-                rule.Category,
-                rule.DefaultSeverity,
-                rule.Enabled,
-                rule.Selectable
-            })
-            .ToList();
+        var ruleList = modernValidator.GetAvailableRules()
+                .Select(rule => new
+                {
+                    Name = rule.Id,
+                    rule.DisplayName,
+                    rule.Category,
+                    rule.DefaultSeverity,
+                    rule.Enabled,
+                    rule.Selectable
+                })
+                .ToList();
 
         return Results.Ok(new { Rules = ruleList, Count = ruleList.Count });
+
     }
 
     private static IResult HealthCheck()
@@ -149,49 +136,4 @@ public static class DocumentEndpoint
         return Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
     }
 
-    private static UniversityConfig CreateRequestConfig(
-        UniversityConfig baseConfig,
-        DocumentUploadRequest request)
-    {
-        return new UniversityConfig
-        {
-            Name = baseConfig.Name,
-            Language = baseConfig.Language,
-            Analysis = new AnalysisConfig
-            {
-                SkipBeforeTableOfContents = request.SkipBeforeTableOfContents,
-                SkipTextBoxes = request.SkipTextBoxes ?? baseConfig.Analysis.SkipTextBoxes,
-                SkipTableOfContentsContent = baseConfig.Analysis.SkipTableOfContentsContent
-            },
-            Rules = new RuleSettingsConfig
-            {
-                Overrides = baseConfig.Rules.Overrides.ToDictionary(
-                    pair => pair.Key,
-                    pair => new RuleOverrideConfig
-                    {
-                        Severity = pair.Value.Severity
-                    },
-                    StringComparer.OrdinalIgnoreCase)
-            },
-            Formatting = new FormattingConfig
-            {
-                CheckTableOfContents = baseConfig.Formatting.CheckTableOfContents,
-                SkipBeforeTableOfContents = request.SkipBeforeTableOfContents,
-                SkipTextBoxes = request.SkipTextBoxes ?? baseConfig.Formatting.SkipTextBoxes,
-                SkipTableOfContentsContent = baseConfig.Formatting.SkipTableOfContentsContent,
-                Font = new FontConfig
-                {
-                    FontFamily = baseConfig.Formatting.Font.FontFamily,
-                    FontSize = baseConfig.Formatting.Font.FontSize
-                },
-                Layout = new LayoutConfig
-                {
-                    MarginLeft = baseConfig.Formatting.Layout.MarginLeft,
-                    MarginRight = baseConfig.Formatting.Layout.MarginRight,
-                    RequiredIndentCm = baseConfig.Formatting.Layout.RequiredIndentCm,
-                    ParagraphSpacingRule = baseConfig.Formatting.Layout.ParagraphSpacingRule.ToList()
-                }
-            }
-        };
-    }
 }

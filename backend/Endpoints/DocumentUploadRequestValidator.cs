@@ -1,6 +1,6 @@
 using System.Text.Json;
+using backend.ModernServices;
 using Microsoft.AspNetCore.Http;
-using backend.Services.Analysis;
 
 namespace backend.Endpoints;
 
@@ -9,9 +9,7 @@ internal static class DocumentUploadRequestValidator
     public static bool TryValidate(
         IFormFile? file,
         string? rules,
-        bool? skipBeforeTableOfContents,
-        bool? skipTextBoxes,
-        ThesisValidatorService thesisValidatorService,
+        ModernThesisValidatorService modernValidator,
         out DocumentUploadRequest? request,
         out IResult? error)
     {
@@ -29,14 +27,14 @@ internal static class DocumentUploadRequestValidator
             return false;
         }
 
-        var unknownRules = thesisValidatorService.GetUnknownRuleNames(selectedRules);
+        var unknownRules = modernValidator.GetUnknownRuleNames(selectedRules);
         if (unknownRules.Count > 0)
         {
             error = DocumentEndpointResults.UnknownRules(unknownRules);
             return false;
         }
 
-        request = new DocumentUploadRequest(file!, fileName, selectedRules, skipBeforeTableOfContents == true, skipTextBoxes);
+        request = new DocumentUploadRequest(file!, fileName, selectedRules);
         return true;
     }
 
