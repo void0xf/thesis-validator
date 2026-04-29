@@ -10,5 +10,4 @@ public class DocumentValidationResponse
     public int TotalWarnings { get; set; }
     public string ConfigUsed { get; set; } = string.Empty;
     public List<ValidationResult> Results { get; set; } = new();
-    public List<HeadingInfo> Headings { get; set; } = new();
 }
