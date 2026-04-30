@@ -1,6 +1,6 @@
 namespace ThesisValidator.Rules;
 
-public interface IModernValidationRule
+public interface IValidationRule
 {
     RuleDescriptor Descriptor { get; }
 

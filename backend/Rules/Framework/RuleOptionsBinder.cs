@@ -11,7 +11,7 @@ public sealed class RuleOptionsBinder
         _configuration = configuration;
     }
 
-    public object Bind(IModernValidationRule rule)
+    public object Bind(IValidationRule rule)
     {
         var options = Activator.CreateInstance(rule.OptionsType)
             ?? throw new InvalidOperationException(

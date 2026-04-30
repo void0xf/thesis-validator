@@ -1,4 +1,3 @@
-using backend.RuleOptions;
 
 namespace ThesisValidator.Rules;
 

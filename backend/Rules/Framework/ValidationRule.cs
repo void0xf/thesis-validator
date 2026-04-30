@@ -1,7 +1,7 @@
 
 namespace ThesisValidator.Rules;
 
-public abstract class ValidationRule<TOptions> : IModernValidationRule
+public abstract class ValidationRule<TOptions> : IValidationRule
     where TOptions : class, new()
 {
     public abstract RuleDescriptor Descriptor { get; }
@@ -12,7 +12,7 @@ public abstract class ValidationRule<TOptions> : IModernValidationRule
             RuleContext context,
             TOptions options);
 
-    IEnumerable<RuleProblem> IModernValidationRule.Validate(
+    IEnumerable<RuleProblem> IValidationRule.Validate(
         RuleContext context,
         object options)
     {
