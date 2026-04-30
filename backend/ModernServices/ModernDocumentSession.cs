@@ -1,5 +1,3 @@
-using backend.Services.Comments;
-using backend.Services.Exceptions;
 using DocumentFormat.OpenXml.Packaging;
 
 namespace backend.ModernServices;
@@ -26,7 +24,7 @@ public sealed class ModernDocumentSession
         try
         {
             document.MainDocumentPart?.Document.Save();
-            return DocumentCommentService.SaveDocumentWithComments(document);
+            return ModernDocumentCommentService.SaveDocumentWithComments(document);
         }
         catch (Exception ex) when (IsDocumentProcessingException(ex))
         {

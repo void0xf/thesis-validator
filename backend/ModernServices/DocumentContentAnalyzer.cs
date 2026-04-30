@@ -1,5 +1,5 @@
-using backend.Services.Extraction;
-using backend.Services.Structure;
+using backend.ModernServices.Extraction;
+using backend.ModernServices.Structure;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Extensions.Options;

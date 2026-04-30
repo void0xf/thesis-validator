@@ -1,4 +1,3 @@
-using backend.Services.Comments;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisValidator.Rules;
 
@@ -10,7 +9,7 @@ public sealed class ModernAnnotationApplier
         WordprocessingDocument document,
         IEnumerable<ModernRuleExecution> executions)
     {
-        var commentService = new DocumentCommentService();
+        var commentService = new ModernDocumentCommentService();
 
         foreach (var execution in executions)
         {
@@ -22,7 +21,7 @@ public sealed class ModernAnnotationApplier
     }
 
     private static void AddCommentForProblem(
-        DocumentCommentService commentService,
+        ModernDocumentCommentService commentService,
         WordprocessingDocument document,
         RuleProblem problem)
     {

@@ -1,6 +1,6 @@
-using backend.Services.Extraction;
-using backend.Services.Skipping;
-using backend.Services.Structure;
+using backend.ModernServices.Extraction;
+using backend.ModernServices.Skipping;
+using backend.ModernServices.Structure;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -95,13 +95,13 @@ public sealed class ModernDocumentSkipService
             return true;
 
         return _options.SkipTextBoxes
-            && (TextBoxSkipRule.IsInsideTextBoxOrDrawingText(paragraph)
+            && (TextBoxContentDetector.IsInsideTextBoxOrDrawingText(paragraph)
                 || IsTextBoxOnlyParagraph(paragraph));
     }
 
     private static bool IsTextBoxOnlyParagraph(Paragraph paragraph)
     {
-        return paragraph.Descendants<Text>().Any(TextBoxSkipRule.IsInsideTextBoxOrDrawingText)
+        return paragraph.Descendants<Text>().Any(TextBoxContentDetector.IsInsideTextBoxOrDrawingText)
             && !TextExtractionService.HasMeaningfulContent(GetParagraphTextWithoutTextBoxes(paragraph));
     }
 
@@ -109,7 +109,7 @@ public sealed class ModernDocumentSkipService
     {
         return string.Concat(paragraph
             .Descendants<Text>()
-            .Where(text => !TextBoxSkipRule.IsInsideTextBoxOrDrawingText(text))
+            .Where(text => !TextBoxContentDetector.IsInsideTextBoxOrDrawingText(text))
             .Select(text => text.Text));
     }
 
