@@ -1,14 +1,15 @@
 using System.Reflection;
 using backend.Endpoints;
-using backend.Models;
 using backend.ModernServices;
 using backend.RuleOptions;
-using backend.Services.CodeBlocks;
-using backend.Services.Language;
-using Backend.Models;
+using backend.ModernServices.Language;
 using ThesisValidator.Rules;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -22,13 +23,6 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
-
-builder.Services.Configure<UniversityConfig>(
-    builder.Configuration.GetSection("UniversityConfig"));
-
-
-
-builder.Services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
 
 builder.Services.AddHttpClient<LanguageToolService>();
 builder.Services.AddScoped<LanguageToolService>();
@@ -44,6 +38,9 @@ builder.Services.AddSingleton<ModernDocumentSession>();
 builder.Services.AddSingleton<ModernDocumentSkipService>();
 builder.Services.AddSingleton<DocumentContentAnalyzer>();
 builder.Services.AddSingleton<ModernFormattingResolver>();
+builder.Services.AddSingleton<ModernParagraphClassifier>();
+builder.Services.AddSingleton<ModernListAnalyzer>();
+builder.Services.AddSingleton<ModernFigureCaptionAnalyzer>();
 builder.Services.AddScoped<ModernRuleRunner>();
 builder.Services.AddSingleton<ModernSectionContextService>();
 builder.Services.AddSingleton<ModernAnnotationApplier>();

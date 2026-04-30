@@ -108,8 +108,8 @@ public static class RuleCatalog
                 "Automatic Table of Contents",
                 RuleCategories.Structure,
                 ValidationSeverity.Error),
-            ["Manual table of contents"] = new(
-                "Manual table of contents",
+            ["ManualTableOfContents"] = new(
+                "ManualTableOfContents",
                 "Manual Table of Contents",
                 RuleCategories.Structure,
                 ValidationSeverity.Warning),

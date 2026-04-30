@@ -1,7 +1,6 @@
 using backend.Models;
 using backend.ModernServices;
 using Microsoft.AspNetCore.Mvc;
-using backend.Services.Exceptions;
 
 namespace backend.Endpoints;
 
