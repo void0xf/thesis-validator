@@ -4,9 +4,9 @@ using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Content;
 using backend.Application.Validation;
 using backend.Annotation;
+using backend.Endpoints.Documents;
+using backend.Endpoints.Documents.Responses;
 using System.Reflection;
-using backend.Models;
-using backend.Endpoints;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -91,6 +91,56 @@ public class DocumentEndpointTests
             problem.Detail);
     }
 
+    [Fact]
+    public void CreateValidationResponse_MapsValidationIssuesToResponseDtos()
+    {
+        var endpointResultsType = typeof(DocumentEndpoint).Assembly.GetType(
+            "backend.Endpoints.Documents.DocumentEndpointResults");
+
+        Assert.NotNull(endpointResultsType);
+
+        var method = endpointResultsType.GetMethod(
+            "CreateValidationResponse",
+            BindingFlags.Public | BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        using var stream = new MemoryStream(new byte[12]);
+        var request = CreateUploadRequest(new FormFile(stream, 0, stream.Length, "file", "thesis.docx"));
+        var issues = new List<ValidationIssue>
+        {
+            new()
+            {
+                RuleName = "FontFamily",
+                Message = "Wrong font",
+                Category = RuleCategories.Formatting,
+                Severity = RuleSeverity.Error,
+                Location = new DocumentLocation
+                {
+                    Paragraph = 2,
+                    Run = 1,
+                    CharacterOffset = 4,
+                    Length = 5,
+                    Text = "Arial",
+                    Section = "Introduction"
+                }
+            }
+        };
+
+        var response = Assert.IsType<DocumentValidationResponse>(
+            method.Invoke(null, [request, issues]));
+        var issue = Assert.Single(response.Results);
+
+        Assert.Equal("thesis.docx", response.FileName);
+        Assert.False(response.IsValid);
+        Assert.Equal(1, response.TotalErrors);
+        Assert.Equal(0, response.TotalWarnings);
+        Assert.Equal("FontFamily", issue.RuleName);
+        Assert.True(issue.IsError);
+        Assert.Equal(RuleSeverity.Error.ToString(), issue.Severity);
+        Assert.Equal("Introduction", issue.Location.Section);
+    }
+
     private static IResult InvokeEndpoint(string methodName, string? rules, params IValidationRule[] availableRules)
     {
         var method = typeof(DocumentEndpoint).GetMethod(
@@ -118,6 +168,20 @@ public class DocumentEndpointTests
         return new FormFile(stream, 0, stream.Length, "file", "thesis.docx");
     }
 
+    private static object CreateUploadRequest(IFormFile file)
+    {
+        var requestType = typeof(DocumentEndpoint).Assembly.GetType(
+            "backend.Endpoints.Documents.DocumentUploadRequest");
+
+        Assert.NotNull(requestType);
+
+        return Activator.CreateInstance(
+            requestType,
+            file,
+            "thesis.docx",
+            new List<string> { "FontFamily" })!;
+    }
+
     private static ProblemDetails AssertBadRequest(IResult result)
     {
         var resultType = result.GetType();
@@ -133,7 +197,7 @@ public class DocumentEndpointTests
         var configuration = new ConfigurationBuilder().Build();
         var policyResolver = new RulePolicyResolver(configuration);
         var optionsBinder = new RuleOptionsBinder(configuration);
-        var resultComposer = new ValidationResultComposer();
+        var resultComposer = new ValidationIssueComposer();
 
         return new ThesisValidationOrchestrator(
             new DocumentSession(),

@@ -1,4 +1,4 @@
-﻿using backend.Models;
+using backend.Application.Validation;
 using backend.Tests.Helpers;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -43,11 +43,11 @@ public class FontExplorationTests
     _output.WriteLine($"Done Errors Count: {errros.Count.ToString()}");
 
   }
-  public IEnumerable<ValidationResult> ValidateTimesNewRoman(
+  public IEnumerable<ValidationIssue> ValidateTimesNewRoman(
     WordprocessingDocument doc)
   {
     var body = doc.MainDocumentPart!.Document.Body!;
-    var errors = new List<ValidationResult>();
+    var errors = new List<ValidationIssue>();
 
     int paragraphIndex = 0;
 
@@ -68,9 +68,8 @@ public class FontExplorationTests
         if (!string.Equals(font, "Times New Roman",
               StringComparison.OrdinalIgnoreCase))
         {
-          errors.Add(new ValidationResult
+          errors.Add(new ValidationIssue
           {
-            IsError = true,
             Message =
               $"Invalid font '{font}' in paragraph {paragraphIndex} text: {text}",
           });

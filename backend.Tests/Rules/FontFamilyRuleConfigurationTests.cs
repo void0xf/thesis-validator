@@ -4,7 +4,6 @@ using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Content;
 using backend.Application.Validation;
 using backend.Annotation;
-using backend.Models;
 using backend.Rules;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -62,7 +61,7 @@ public class FontFamilyRuleConfigurationTests
             ["Validation:Rules:FontFamily:Severity"] = "Warning"
         });
 
-        Assert.Equal(ValidationSeverity.Warning, result.Severity);
+        Assert.Equal(RuleSeverity.Warning, result.Severity);
         Assert.False(result.IsError);
     }
 
@@ -74,7 +73,7 @@ public class FontFamilyRuleConfigurationTests
             ["Validation:Rules:FontFamily:Severity"] = "Error"
         });
 
-        Assert.Equal(ValidationSeverity.Error, result.Severity);
+        Assert.Equal(RuleSeverity.Error, result.Severity);
         Assert.True(result.IsError);
     }
 
@@ -108,7 +107,7 @@ public class FontFamilyRuleConfigurationTests
         Assert.Equal(0, unselectedRule.RunCount);
     }
 
-    private static ValidationResult ValidateFontFamilyRule(
+    private static ValidationIssue ValidateFontFamilyRule(
         Dictionary<string, string?>? configurationValues = null)
     {
         var service = CreateService(configurationValues);
@@ -126,7 +125,7 @@ public class FontFamilyRuleConfigurationTests
             .Build();
         var policyResolver = new RulePolicyResolver(configuration);
         var optionsBinder = new RuleOptionsBinder(configuration);
-        var resultComposer = new ValidationResultComposer();
+        var resultComposer = new ValidationIssueComposer();
 
         return new ThesisValidationOrchestrator(
             new DocumentSession(),

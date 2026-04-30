@@ -36,7 +36,7 @@ public sealed class ValidationDependencyInjectionTests
         services.AddOptions<ValidationSkippingOptions>()
             .Bind(configuration.GetSection(ValidationSkippingOptions.SectionName));
 
-        services.AddSingleton<ValidationResultComposer>();
+        services.AddSingleton<ValidationIssueComposer>();
         services.AddSingleton<RulePolicyResolver>();
         services.AddSingleton<RuleOptionsBinder>();
         services.AddSingleton<DocumentSession>();

@@ -1,6 +1,5 @@
 using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Content;
-using backend.Models;
 using backend.Rules;
 using backend.Tests.Helpers;
 using Microsoft.Extensions.Options;
