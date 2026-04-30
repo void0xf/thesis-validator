@@ -1,18 +1,19 @@
-using backend.Models;
+using backend.Application.Validation;
+using backend.Endpoints.Documents.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Endpoints;
+namespace backend.Endpoints.Documents;
 
 internal static class DocumentEndpointResults
 {
     public const string DocxContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    private const string LoggerCategory = "backend.Endpoints.DocumentEndpoint";
+    private const string LoggerCategory = "backend.Endpoints.Documents.DocumentEndpoint";
 
     public static DocumentValidationResponse CreateValidationResponse(
         DocumentUploadRequest request,
-        IReadOnlyList<ValidationResult> results)
+        IReadOnlyList<ValidationIssue> results)
     {
         return new DocumentValidationResponse
         {
@@ -22,7 +23,9 @@ internal static class DocumentEndpointResults
             IsValid = !results.Any(r => r.IsError),
             TotalErrors = results.Count(r => r.IsError),
             TotalWarnings = results.Count(r => !r.IsError),
-            Results = results.ToList()
+            Results = results
+                .Select(ValidationIssueResponse.From)
+                .ToList()
         };
     }
 

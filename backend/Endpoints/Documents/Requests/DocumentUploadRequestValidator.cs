@@ -2,7 +2,7 @@ using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValida
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 
-namespace backend.Endpoints;
+namespace backend.Endpoints.Documents;
 
 internal static class DocumentUploadRequestValidator
 {

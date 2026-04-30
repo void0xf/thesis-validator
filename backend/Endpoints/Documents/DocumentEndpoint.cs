@@ -1,9 +1,9 @@
 using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
 using backend.DocumentProcessing.Documents;
-using backend.Models;
+using backend.Endpoints.Documents.Responses;
 using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Endpoints;
+namespace backend.Endpoints.Documents;
 
 public static class DocumentEndpoint
 {
@@ -122,8 +122,6 @@ public static class DocumentEndpoint
                     rule.DisplayName,
                     rule.Category,
                     rule.DefaultSeverity,
-                    rule.Enabled,
-                    rule.Selectable
                 })
                 .ToList();
 
