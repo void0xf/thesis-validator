@@ -8,10 +8,6 @@ src/backend/.idea
 src/backend/bin
 src/backend/obj
 src/backend/output/
-tests/backend.Tests/Fixtures/*
-!tests/backend.Tests/Fixtures/test.docx
-!tests/backend.Tests/Fixtures/Fonts/
-!tests/backend.Tests/Fixtures/Fonts/Praca_Inzynierska_Tester_1_error.docx
 src/frontend/.vscode/extensions.json
 src/frontend/.vscode/launch.json
 src/frontend/.vscode/tasks.json
