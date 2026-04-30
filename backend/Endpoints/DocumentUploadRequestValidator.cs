@@ -1,5 +1,5 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
 using System.Text.Json;
-using backend.ModernServices;
 using Microsoft.AspNetCore.Http;
 
 namespace backend.Endpoints;
@@ -9,7 +9,7 @@ internal static class DocumentUploadRequestValidator
     public static bool TryValidate(
         IFormFile? file,
         string? rules,
-        ModernThesisValidatorService modernValidator,
+        ThesisValidationOrchestrator validator,
         out DocumentUploadRequest? request,
         out IResult? error)
     {
@@ -27,7 +27,7 @@ internal static class DocumentUploadRequestValidator
             return false;
         }
 
-        var unknownRules = modernValidator.GetUnknownRuleNames(selectedRules);
+        var unknownRules = validator.GetUnknownRuleNames(selectedRules);
         if (unknownRules.Count > 0)
         {
             error = DocumentEndpointResults.UnknownRules(unknownRules);

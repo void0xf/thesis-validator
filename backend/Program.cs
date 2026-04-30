@@ -1,8 +1,16 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
+using backend.DocumentProcessing.Paragraphs;
+using backend.DocumentProcessing.Lists;
+using backend.DocumentProcessing.Formatting;
+using backend.DocumentProcessing.Figures;
+using backend.DocumentProcessing.Documents;
+using backend.DocumentProcessing.Context;
+using backend.DocumentProcessing.Content;
+using backend.Application.Validation;
+using backend.Annotation;
 using System.Reflection;
 using backend.Endpoints;
-using backend.ModernServices;
-using backend.RuleOptions;
-using backend.ModernServices.Language;
+using backend.Infrastructure.LanguageTool;
 using ThesisValidator.Rules;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,40 +32,39 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddHttpClient<LanguageToolService>();
-builder.Services.AddScoped<LanguageToolService>();
+builder.Services.AddHttpClient<LanguageToolClient>();
 
-builder.Services.AddOptions<ModernValidationOptions>()
-    .Bind(builder.Configuration.GetSection(ModernValidationOptions.SectionName))
+builder.Services.AddOptions<ValidationSkippingOptions>()
+    .Bind(builder.Configuration.GetSection(ValidationSkippingOptions.SectionName))
     .ValidateOnStart();
 
 builder.Services.AddSingleton<ValidationResultComposer>();
 builder.Services.AddSingleton<RulePolicyResolver>();
 builder.Services.AddSingleton<RuleOptionsBinder>();
-builder.Services.AddSingleton<ModernDocumentSession>();
-builder.Services.AddSingleton<ModernDocumentSkipService>();
+builder.Services.AddSingleton<DocumentSession>();
+builder.Services.AddSingleton<DocumentSkipResolver>();
 builder.Services.AddSingleton<DocumentContentAnalyzer>();
-builder.Services.AddSingleton<ModernFormattingResolver>();
-builder.Services.AddSingleton<ModernParagraphClassifier>();
-builder.Services.AddSingleton<ModernListAnalyzer>();
-builder.Services.AddSingleton<ModernFigureCaptionAnalyzer>();
-builder.Services.AddScoped<ModernRuleRunner>();
-builder.Services.AddSingleton<ModernSectionContextService>();
-builder.Services.AddSingleton<ModernAnnotationApplier>();
+builder.Services.AddSingleton<FormattingResolver>();
+builder.Services.AddSingleton<ParagraphClassifier>();
+builder.Services.AddSingleton<ListAnalyzer>();
+builder.Services.AddSingleton<FigureCaptionAnalyzer>();
+builder.Services.AddScoped<RuleRunner>();
+builder.Services.AddSingleton<SectionContextResolver>();
+builder.Services.AddSingleton<AnnotationApplicator>();
 
 
-var modernRuleTypes = typeof(Program).Assembly.GetTypes()
-    .Where(t => typeof(IModernValidationRule).IsAssignableFrom(t)
+var validationRuleTypes = typeof(Program).Assembly.GetTypes()
+    .Where(t => typeof(IValidationRule).IsAssignableFrom(t)
         && !t.IsInterface
         && !t.IsAbstract
         && !t.IsNested);
 
-foreach (var ruleType in modernRuleTypes)
+foreach (var ruleType in validationRuleTypes)
 {
-    builder.Services.AddScoped(typeof(IModernValidationRule), ruleType);
+    builder.Services.AddScoped(typeof(IValidationRule), ruleType);
 }
 
-builder.Services.AddScoped<ModernThesisValidatorService>();
+builder.Services.AddScoped<ThesisValidationOrchestrator>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

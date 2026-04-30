@@ -1,5 +1,6 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
+using backend.DocumentProcessing.Documents;
 using backend.Models;
-using backend.ModernServices;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Endpoints;
@@ -43,14 +44,14 @@ public static class DocumentEndpoint
     private static IResult ValidateDocument(
         IFormFile? file,
         [FromForm] string? rules,
-        ModernThesisValidatorService modernValidator,
+        ThesisValidationOrchestrator validator,
         ILoggerFactory loggerFactory)
     {
         if (!DocumentUploadRequestValidator
                 .TryValidate(
                     file,
                     rules,
-                    modernValidator, out var request, out var error))
+                    validator, out var request, out var error))
         {
             return error!;
         }
@@ -58,7 +59,7 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var validationResults = modernValidator.Validate(stream, request.SelectedRules);
+            var validationResults = validator.Validate(stream, request.SelectedRules);
             var results = validationResults.ToList();
 
             var response = DocumentEndpointResults
@@ -80,10 +81,10 @@ public static class DocumentEndpoint
     private static IResult ValidateWithComments(
         IFormFile? file,
         [FromForm] string? rules,
-        ModernThesisValidatorService modernValidator,
+        ThesisValidationOrchestrator validator,
         ILoggerFactory loggerFactory)
     {
-        if (!DocumentUploadRequestValidator.TryValidate(file, rules, modernValidator, out var request, out var error))
+        if (!DocumentUploadRequestValidator.TryValidate(file, rules, validator, out var request, out var error))
         {
             return error!;
         }
@@ -91,7 +92,7 @@ public static class DocumentEndpoint
         try
         {
             using var stream = request!.File.OpenReadStream();
-            var (_, annotatedDocument) = modernValidator.ValidateWithComments(stream, request.SelectedRules);
+            var (_, annotatedDocument) = validator.ValidateWithComments(stream, request.SelectedRules);
 
             var outputFileName = DocumentEndpointResults.GetAnnotatedFileName(request.FileName);
 
@@ -112,9 +113,9 @@ public static class DocumentEndpoint
     }
 
     private static IResult GetAvailableRules(
-        ModernThesisValidatorService modernValidator)
+        ThesisValidationOrchestrator validator)
     {
-        var ruleList = modernValidator.GetAvailableRules()
+        var ruleList = validator.GetAvailableRules()
                 .Select(rule => new
                 {
                     Name = rule.Id,
