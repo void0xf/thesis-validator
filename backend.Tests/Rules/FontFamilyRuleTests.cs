@@ -1,6 +1,6 @@
+using backend.DocumentProcessing.Context;
+using backend.DocumentProcessing.Content;
 using backend.Models;
-using backend.ModernServices;
-using backend.RuleOptions;
 using backend.Rules;
 using backend.Tests.Helpers;
 using Microsoft.Extensions.Options;
@@ -136,8 +136,8 @@ public class FontFamilyRuleTests
         InMemoryDocx docx,
         FontFamilyRuleOptions options)
     {
-        var analyzer = new DocumentContentAnalyzer(new ModernDocumentSkipService(
-            Options.Create(new ModernValidationOptions())));
+        var analyzer = new DocumentContentAnalyzer(new DocumentSkipResolver(
+            Options.Create(new ValidationSkippingOptions())));
         var context = new RuleContext
         {
             RawDocument = docx.Document,

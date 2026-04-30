@@ -1,5 +1,10 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
+using backend.DocumentProcessing.Documents;
+using backend.DocumentProcessing.Context;
+using backend.DocumentProcessing.Content;
+using backend.Application.Validation;
+using backend.Annotation;
 using System.Reflection;
-using backend.ModernServices;
 using backend.Models;
 using backend.Endpoints;
 using Microsoft.Extensions.Configuration;
@@ -86,7 +91,7 @@ public class DocumentEndpointTests
             problem.Detail);
     }
 
-    private static IResult InvokeEndpoint(string methodName, string? rules, params IModernValidationRule[] availableRules)
+    private static IResult InvokeEndpoint(string methodName, string? rules, params IValidationRule[] availableRules)
     {
         var method = typeof(DocumentEndpoint).GetMethod(
             methodName,
@@ -123,23 +128,23 @@ public class DocumentEndpointTests
         return Assert.IsType<ProblemDetails>(value);
     }
 
-    private static ModernThesisValidatorService CreateValidator(params IModernValidationRule[] rules)
+    private static ThesisValidationOrchestrator CreateValidator(params IValidationRule[] rules)
     {
         var configuration = new ConfigurationBuilder().Build();
         var policyResolver = new RulePolicyResolver(configuration);
         var optionsBinder = new RuleOptionsBinder(configuration);
         var resultComposer = new ValidationResultComposer();
 
-        return new ModernThesisValidatorService(
-            new ModernDocumentSession(),
-            new DocumentContentAnalyzer(new ModernDocumentSkipService(
-                Options.Create(new ModernValidationOptions()))),
-            new ModernRuleRunner(rules, policyResolver, optionsBinder, resultComposer),
-            new ModernSectionContextService(),
-            new ModernAnnotationApplier());
+        return new ThesisValidationOrchestrator(
+            new DocumentSession(),
+            new DocumentContentAnalyzer(new DocumentSkipResolver(
+                Options.Create(new ValidationSkippingOptions()))),
+            new RuleRunner(rules, policyResolver, optionsBinder, resultComposer),
+            new SectionContextResolver(),
+            new AnnotationApplicator());
     }
 
-    private sealed class TestValidationRule : ValidationRule<NoRuleOptions>
+    private sealed class TestValidationRule : ValidationRule<TestValidationRuleOptions>
     {
         private readonly string _name;
 
@@ -153,14 +158,16 @@ public class DocumentEndpointTests
             DisplayName: _name,
             Description: _name,
             Category: RuleCategories.Formatting,
-            DefaultAvailability: backend.RuleOptions.RuleAvailability.Available,
-            DefaultSeverity: backend.RuleOptions.RuleSeverity.Error);
+            DefaultAvailability: RuleAvailability.Available,
+            DefaultSeverity: RuleSeverity.Error);
 
         public override IEnumerable<RuleProblem> Validate(
             RuleContext context,
-            NoRuleOptions options)
+            TestValidationRuleOptions options)
         {
             return [];
         }
     }
+
+    private sealed class TestValidationRuleOptions : RuleOptionsBase;
 }

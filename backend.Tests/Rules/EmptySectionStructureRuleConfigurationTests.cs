@@ -1,6 +1,10 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
+using backend.DocumentProcessing.Documents;
+using backend.DocumentProcessing.Context;
+using backend.DocumentProcessing.Content;
+using backend.Application.Validation;
+using backend.Annotation;
 using backend.Models;
-using backend.ModernServices;
-using backend.RuleOptions;
 using backend.Rules;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -91,7 +95,7 @@ public class EmptySectionStructureRuleConfigurationTests
         return Assert.Single(service.Validate(stream, [EmptySectionStructureRule.RuleId]));
     }
 
-    private static ModernThesisValidatorService CreateService(
+    private static ThesisValidationOrchestrator CreateService(
         Dictionary<string, string?>? configurationValues = null)
     {
         var configuration = new ConfigurationBuilder()
@@ -101,17 +105,17 @@ public class EmptySectionStructureRuleConfigurationTests
         var optionsBinder = new RuleOptionsBinder(configuration);
         var resultComposer = new ValidationResultComposer();
 
-        return new ModernThesisValidatorService(
-            new ModernDocumentSession(),
-            new DocumentContentAnalyzer(new ModernDocumentSkipService(
-                Options.Create(new ModernValidationOptions()))),
-            new ModernRuleRunner(
+        return new ThesisValidationOrchestrator(
+            new DocumentSession(),
+            new DocumentContentAnalyzer(new DocumentSkipResolver(
+                Options.Create(new ValidationSkippingOptions()))),
+            new RuleRunner(
                 [new EmptySectionStructureRule()],
                 policyResolver,
                 optionsBinder,
                 resultComposer),
-            new ModernSectionContextService(),
-            new ModernAnnotationApplier());
+            new SectionContextResolver(),
+            new AnnotationApplicator());
     }
 
     private static MemoryStream CreateEmptySectionDocxStream()

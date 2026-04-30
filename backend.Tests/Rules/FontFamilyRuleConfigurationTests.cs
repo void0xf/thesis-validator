@@ -1,5 +1,10 @@
+using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
+using backend.DocumentProcessing.Documents;
+using backend.DocumentProcessing.Context;
+using backend.DocumentProcessing.Content;
+using backend.Application.Validation;
+using backend.Annotation;
 using backend.Models;
-using backend.ModernServices;
 using backend.Rules;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -90,8 +95,8 @@ public class FontFamilyRuleConfigurationTests
     [Fact]
     public void Validate_WithSelectedRules_RunsFontFamilyWithoutRunningUnselectedRule()
     {
-        var selectedRule = new RecordingModernRule(FontFamilyRule.RuleId);
-        var unselectedRule = new RecordingModernRule("Grammar");
+        var selectedRule = new RecordingRule(FontFamilyRule.RuleId);
+        var unselectedRule = new RecordingRule("Grammar");
         var service = CreateService(
             configurationValues: null,
             rules: [selectedRule, unselectedRule]);
@@ -112,9 +117,9 @@ public class FontFamilyRuleConfigurationTests
         return Assert.Single(service.Validate(stream, [FontFamilyRule.RuleId]));
     }
 
-    private static ModernThesisValidatorService CreateService(
+    private static ThesisValidationOrchestrator CreateService(
         Dictionary<string, string?>? configurationValues = null,
-        IEnumerable<IModernValidationRule>? rules = null)
+        IEnumerable<IValidationRule>? rules = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configurationValues ?? new Dictionary<string, string?>())
@@ -123,17 +128,17 @@ public class FontFamilyRuleConfigurationTests
         var optionsBinder = new RuleOptionsBinder(configuration);
         var resultComposer = new ValidationResultComposer();
 
-        return new ModernThesisValidatorService(
-            new ModernDocumentSession(),
-            new DocumentContentAnalyzer(new ModernDocumentSkipService(
-                Options.Create(new ModernValidationOptions()))),
-            new ModernRuleRunner(
+        return new ThesisValidationOrchestrator(
+            new DocumentSession(),
+            new DocumentContentAnalyzer(new DocumentSkipResolver(
+                Options.Create(new ValidationSkippingOptions()))),
+            new RuleRunner(
                 rules ?? [new FontFamilyRule()],
                 policyResolver,
                 optionsBinder,
                 resultComposer),
-            new ModernSectionContextService(),
-            new ModernAnnotationApplier());
+            new SectionContextResolver(),
+            new AnnotationApplicator());
     }
 
     private static MemoryStream CreateDocxStream(params (string Text, string? FontFamily)[] paragraphs)
@@ -163,11 +168,11 @@ public class FontFamilyRuleConfigurationTests
         return stream;
     }
 
-    private sealed class RecordingModernRule : ValidationRule<NoRuleOptions>
+    private sealed class RecordingRule : ValidationRule<RecordingRuleOptions>
     {
         private readonly string _name;
 
-        public RecordingModernRule(string name)
+        public RecordingRule(string name)
         {
             _name = name;
         }
@@ -179,12 +184,12 @@ public class FontFamilyRuleConfigurationTests
             DisplayName: _name,
             Description: _name,
             Category: RuleCategories.Formatting,
-            DefaultAvailability: backend.RuleOptions.RuleAvailability.Available,
-            DefaultSeverity: backend.RuleOptions.RuleSeverity.Error);
+            DefaultAvailability: RuleAvailability.Available,
+            DefaultSeverity: RuleSeverity.Error);
 
         public override IEnumerable<RuleProblem> Validate(
             RuleContext context,
-            NoRuleOptions options)
+            RecordingRuleOptions options)
         {
             RunCount++;
 
@@ -194,4 +199,6 @@ public class FontFamilyRuleConfigurationTests
                 ParagraphIndexKind.BodyElement);
         }
     }
+
+    private sealed class RecordingRuleOptions : RuleOptionsBase;
 }
