@@ -4,7 +4,6 @@ using backend.DocumentProcessing.Lists;
 using backend.DocumentProcessing.Formatting;
 using backend.DocumentProcessing.Figures;
 using backend.DocumentProcessing.Content;
-using backend.Models;
 using ThesisValidator.Rules;
 
 namespace backend.Rules;

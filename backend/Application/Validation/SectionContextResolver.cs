@@ -1,4 +1,3 @@
-using backend.Models;
 using ThesisValidator.Rules;
 
 namespace backend.Application.Validation;
@@ -6,7 +5,7 @@ namespace backend.Application.Validation;
 public sealed class SectionContextResolver
 {
     public void PopulateSectionContext(
-        IReadOnlyList<ValidationResult> results,
+        IReadOnlyList<ValidationIssue> results,
         DocumentContent content)
     {
         var headings = content.BodyChildParagraphs

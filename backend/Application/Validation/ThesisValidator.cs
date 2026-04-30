@@ -1,7 +1,6 @@
 using backend.DocumentProcessing.Documents;
 using backend.DocumentProcessing.Content;
 using backend.Annotation;
-using backend.Models;
 using ThesisValidator.Rules;
 
 namespace backend.Application.Validation;
@@ -38,7 +37,7 @@ public sealed class ThesisValidator
         return _ruleRunner.GetUnknownRuleNames(selectedRules);
     }
 
-    public IReadOnlyList<ValidationResult> Validate(
+    public IReadOnlyList<ValidationIssue> Validate(
         Stream fileStream,
         IEnumerable<string>? selectedRules = null)
     {
@@ -48,7 +47,7 @@ public sealed class ThesisValidator
             .ToList();
     }
 
-    public (IReadOnlyList<ValidationResult> Results, MemoryStream AnnotatedDocument) ValidateWithComments(
+    public (IReadOnlyList<ValidationIssue> Results, MemoryStream AnnotatedDocument) ValidateWithComments(
         Stream fileStream,
         IEnumerable<string>? selectedRules = null)
     {

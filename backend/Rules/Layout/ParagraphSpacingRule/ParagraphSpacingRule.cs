@@ -2,7 +2,6 @@ using backend.DocumentProcessing.TablesOfContents;
 using backend.DocumentProcessing.Paragraphs;
 using backend.DocumentProcessing.Lists;
 using backend.DocumentProcessing.Figures;
-using backend.Models;
 using backend.DocumentProcessing.Content;
 using backend.DocumentProcessing.Formatting;
 using ThesisValidator.Rules;

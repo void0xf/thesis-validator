@@ -3,7 +3,6 @@ using backend.DocumentProcessing.Paragraphs;
 using backend.DocumentProcessing.Lists;
 using backend.DocumentProcessing.Formatting;
 using backend.DocumentProcessing.Figures;
-using backend.Models;
 using backend.DocumentProcessing.Content;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
@@ -12,7 +11,7 @@ namespace backend.Rules;
 
 public sealed class FontFamilyRule : ValidationRule<FontFamilyRuleOptions>
 {
-    public const string RuleId = "FontFamily";
+    public const string RuleId = "FontFamilyRule";
 
     private const string DefaultRequiredFontFamily = "Times New Roman";
     private readonly FormattingResolver _formattingResolver = new();

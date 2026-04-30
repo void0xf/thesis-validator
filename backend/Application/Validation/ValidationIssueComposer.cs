@@ -1,20 +1,20 @@
-using backend.Models;
+using ThesisValidator.Rules;
 
-namespace ThesisValidator.Rules;
+namespace backend.Application.Validation;
 
-public sealed class ValidationResultComposer
+public sealed class ValidationIssueComposer
 {
-    public ValidationResult Compose(
+    public ValidationIssue Compose(
         RuleDescriptor descriptor,
         RulePolicy policy,
         RuleProblem problem)
     {
-        return new ValidationResult
+        return new ValidationIssue
         {
             RuleName = descriptor.Name,
             Message = problem.Message,
             Category = descriptor.Category,
-            Severity = policy.Severity.ToString(),
+            Severity = policy.Severity,
             ParagraphIndexKind = problem.ParagraphIndexKind,
             Location = problem.Location
         };

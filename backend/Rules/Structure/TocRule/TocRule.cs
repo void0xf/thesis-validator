@@ -3,7 +3,6 @@ using backend.DocumentProcessing.Paragraphs;
 using backend.DocumentProcessing.Lists;
 using backend.DocumentProcessing.Formatting;
 using backend.DocumentProcessing.Content;
-using backend.Models;
 using backend.DocumentProcessing.Figures;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;

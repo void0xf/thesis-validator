@@ -1,5 +1,3 @@
-using backend.Models;
-
 namespace ThesisValidator.Rules;
 
 public sealed record RuleProblem(

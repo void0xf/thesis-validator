@@ -4,6 +4,4 @@ public sealed record AvailableValidationRule(
     string Id,
     string DisplayName,
     string Category,
-    string DefaultSeverity,
-    bool Enabled = true,
-    bool Selectable = true);
+    string DefaultSeverity);

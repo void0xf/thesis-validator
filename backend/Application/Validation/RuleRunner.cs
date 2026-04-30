@@ -7,13 +7,13 @@ public sealed class RuleRunner
     private readonly IReadOnlyList<IValidationRule> _rules;
     private readonly RulePolicyResolver _policyResolver;
     private readonly RuleOptionsBinder _optionsBinder;
-    private readonly ValidationResultComposer _resultComposer;
+    private readonly ValidationIssueComposer _resultComposer;
 
     public RuleRunner(
         IEnumerable<IValidationRule> rules,
         RulePolicyResolver policyResolver,
         RuleOptionsBinder optionsBinder,
-        ValidationResultComposer resultComposer)
+        ValidationIssueComposer resultComposer)
     {
         _rules = rules.ToList();
         _policyResolver = policyResolver;
