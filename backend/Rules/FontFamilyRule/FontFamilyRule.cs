@@ -1,7 +1,7 @@
 using backend.Models;
 using backend.ModernServices;
 using backend.RuleOptions;
-using backend.Services.Extraction;
+using backend.ModernServices.Extraction;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
 
@@ -12,12 +12,7 @@ public sealed class FontFamilyRule : ValidationRule<FontFamilyRuleOptions>
     public const string RuleId = "FontFamily";
 
     private const string DefaultRequiredFontFamily = "Times New Roman";
-    private readonly ModernFormattingResolver _formattingResolver;
-
-    public FontFamilyRule(ModernFormattingResolver? formattingResolver = null)
-    {
-        _formattingResolver = formattingResolver ?? new ModernFormattingResolver();
-    }
+    private readonly ModernFormattingResolver _formattingResolver = new();
 
     public override RuleDescriptor Descriptor => new(
         Name: RuleId,
@@ -44,7 +39,7 @@ public sealed class FontFamilyRule : ValidationRule<FontFamilyRuleOptions>
             {
                 runIndex++;
 
-                var text = GetRunText(run);
+                var text = TextExtractionService.GetRunText(run);
                 if (string.IsNullOrWhiteSpace(text))
                 {
                     characterOffset += text.Length;
@@ -80,10 +75,5 @@ public sealed class FontFamilyRule : ValidationRule<FontFamilyRuleOptions>
                 characterOffset += text.Length;
             }
         }
-    }
-
-    private static string GetRunText(Run run)
-    {
-        return string.Concat(run.Elements<Text>().Select(text => text.Text));
     }
 }
