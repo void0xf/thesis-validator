@@ -28,18 +28,4 @@
     <ProjectReference Include="..\..\src\backend\ThesisValidator.Api.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Fixtures\Fonts\Praca_Inzynierska_Tester_1_error.docx" />
-    <Content Include="Fixtures\Fonts\Praca_Inzynierska_Tester_1_error.docx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Fixtures\test.docx" />
-    <Content Include="Fixtures\test.docx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
 </Project>
