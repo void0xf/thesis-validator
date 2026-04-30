@@ -31,7 +31,7 @@ public class FontFamilyRuleConfigurationTests
     {
         var service = CreateService(new Dictionary<string, string?>
         {
-            ["Validation:Rules:FontFamily:Availability"] = "Hidden"
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:Availability"] = "Hidden"
         });
 
         var rules = service.GetAvailableRules();
@@ -40,11 +40,26 @@ public class FontFamilyRuleConfigurationTests
     }
 
     [Fact]
+    public void GetAvailableRules_WhenSeverityIsWarning_ReportsWarning()
+    {
+        var service = CreateService(new Dictionary<string, string?>
+        {
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:Severity"] = "Warning"
+        });
+
+        var rule = Assert.Single(
+            service.GetAvailableRules(),
+            rule => rule.Id == FontFamilyRule.RuleId);
+
+        Assert.Equal(RuleSeverity.Warning.ToString(), rule.DefaultSeverity);
+    }
+
+    [Fact]
     public void Validate_WhenHiddenRuleIsManuallySelected_DoesNotExecuteRule()
     {
         var service = CreateService(new Dictionary<string, string?>
         {
-            ["Validation:Rules:FontFamily:Availability"] = "Hidden"
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:Availability"] = "Hidden"
         });
         using var stream = CreateDocxStream(("Wrong font paragraph", "Arial"));
 
@@ -58,7 +73,7 @@ public class FontFamilyRuleConfigurationTests
     {
         var result = ValidateFontFamilyRule(new Dictionary<string, string?>
         {
-            ["Validation:Rules:FontFamily:Severity"] = "Warning"
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:Severity"] = "Warning"
         });
 
         Assert.Equal(RuleSeverity.Warning, result.Severity);
@@ -70,7 +85,7 @@ public class FontFamilyRuleConfigurationTests
     {
         var result = ValidateFontFamilyRule(new Dictionary<string, string?>
         {
-            ["Validation:Rules:FontFamily:Severity"] = "Error"
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:Severity"] = "Error"
         });
 
         Assert.Equal(RuleSeverity.Error, result.Severity);
@@ -82,7 +97,7 @@ public class FontFamilyRuleConfigurationTests
     {
         var service = CreateService(new Dictionary<string, string?>
         {
-            ["Validation:Rules:FontFamily:RequiredFontFamily"] = "Arial"
+            [$"Validation:Rules:{FontFamilyRule.RuleId}:RequiredFontFamily"] = "Arial"
         });
         using var stream = CreateDocxStream(("Configured font paragraph", "Arial"));
 

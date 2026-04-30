@@ -128,7 +128,7 @@ public class FontFamilyRuleTests
     [Fact]
     public void Validate_RuleDescriptorUsesFontFamilyRuleId()
     {
-        Assert.Equal("FontFamily", _rule.Descriptor.Name);
+        Assert.Equal(FontFamilyRule.RuleId, _rule.Descriptor.Name);
     }
 
     private IEnumerable<RuleProblem> Validate(
