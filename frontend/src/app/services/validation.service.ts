@@ -1,8 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import {
+  HeadingInfo,
   ValidationOptions,
+  ValidationResult,
   ValidationResponse,
   RulesResponse,
 } from '../models/validation.models';
@@ -25,7 +28,9 @@ export class ValidationService {
     options?: ValidationOptions,
   ): Observable<ValidationResponse> {
     const formData = this.createValidationFormData(file, selectedRules, options);
-    return this.http.post<ValidationResponse>(`${this.baseUrl}/validate`, formData);
+    return this.http
+      .post<ValidationResponse>(`${this.baseUrl}/validate`, formData)
+      .pipe(map((response) => this.normalizeValidationResponse(response)));
   }
 
   validateWithComments(
@@ -55,12 +60,31 @@ export class ValidationService {
       formData.append('rules', JSON.stringify(selectedRules));
     }
 
-    formData.append(
-      'skipBeforeTableOfContents',
-      String(options?.skipBeforeTableOfContents ?? false),
-    );
-    formData.append('skipTextBoxes', String(options?.skipTextBoxes ?? true));
-
     return formData;
+  }
+
+  private normalizeValidationResponse(
+    response: ValidationResponse,
+  ): ValidationResponse {
+    const results: ValidationResult[] = Array.isArray(response.results)
+      ? response.results
+      : [];
+    const headings: HeadingInfo[] = Array.isArray(response.headings)
+      ? response.headings
+      : [];
+    const totalErrors =
+      response.totalErrors ?? results.filter((result) => result.isError).length;
+    const totalWarnings =
+      response.totalWarnings ??
+      results.filter((result) => !result.isError).length;
+
+    return {
+      ...response,
+      results,
+      headings,
+      totalErrors,
+      totalWarnings,
+      isValid: response.isValid ?? totalErrors === 0,
+    };
   }
 }

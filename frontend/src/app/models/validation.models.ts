@@ -33,7 +33,7 @@ export interface ValidationResponse {
   totalWarnings: number;
   configUsed: string;
   results: ValidationResult[];
-  headings: HeadingInfo[];
+  headings?: HeadingInfo[];
 }
 
 export interface ValidationOptions {
@@ -160,7 +160,7 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Ensures the document contains an automatic Word table of contents',
     category: 'structure'
   },
-  'Manual table of contents': {
+  'ManualTableOfContents': {
     displayName: 'Manual Table of Contents',
     description: 'Warns when a table of contents appears to be manually written',
     category: 'structure'

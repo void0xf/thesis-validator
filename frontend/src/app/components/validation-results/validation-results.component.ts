@@ -3,7 +3,6 @@ import {
   Input,
   Output,
   EventEmitter,
-  computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -11,6 +10,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import {
   ValidationResponse,
   CategoryGroup,
+  HeadingInfo,
   RuleCategory,
   RULE_METADATA,
   CATEGORY_INFO,
@@ -44,16 +44,16 @@ import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.comp
         <app-result-stats-grid
           [errors]="response.totalErrors"
           [warnings]="response.totalWarnings"
-          [categoryCount]="categoryGroups().length"
+          [categoryCount]="categoryGroups.length"
         />
       </div>
 
-      @if (categoryGroups().length > 0) {
-        <app-result-category-list [categoryGroups]="categoryGroups()" />
+      @if (categoryGroups.length > 0) {
+        <app-result-category-list [categoryGroups]="categoryGroups" />
       }
 
-      @if (response.headings.length) {
-        <app-result-heading-hierarchy [headings]="response.headings" />
+      @if (headings.length) {
+        <app-result-heading-hierarchy [headings]="headings" />
       }
 
       @if (response.isValid) {
@@ -81,14 +81,42 @@ import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.comp
   ],
 })
 export class ValidationResultsComponent {
-  @Input({ required: true }) response!: ValidationResponse;
   @Output() onDownloadAnnotated = new EventEmitter<void>();
   @Output() onReset = new EventEmitter<void>();
 
-  categoryGroups = computed(() => {
+  private _response!: ValidationResponse;
+  categoryGroups: CategoryGroup[] = [];
+  headings: HeadingInfo[] = [];
+
+  @Input({ required: true })
+  set response(value: ValidationResponse) {
+    const results = Array.isArray(value.results) ? value.results : [];
+    const headings = Array.isArray(value.headings) ? value.headings : [];
+    const totalErrors =
+      value.totalErrors ?? results.filter((result) => result.isError).length;
+    const totalWarnings =
+      value.totalWarnings ?? results.filter((result) => !result.isError).length;
+
+    this._response = {
+      ...value,
+      results,
+      headings,
+      totalErrors,
+      totalWarnings,
+      isValid: value.isValid ?? totalErrors === 0,
+    };
+    this.headings = headings;
+    this.categoryGroups = this.buildCategoryGroups(results);
+  }
+
+  get response(): ValidationResponse {
+    return this._response;
+  }
+
+  private buildCategoryGroups(results: ValidationResponse['results']): CategoryGroup[] {
     const groups: Map<RuleCategory, CategoryGroup> = new Map();
 
-    for (const result of this.response.results) {
+    for (const result of results) {
       const category =
         this.normalizeCategory(result.category) ||
         RULE_METADATA[result.ruleName]?.category ||
@@ -119,7 +147,7 @@ export class ValidationResultsComponent {
         (CATEGORY_INFO[a.category]?.order || 99) -
         (CATEGORY_INFO[b.category]?.order || 99),
     );
-  });
+  }
 
   private normalizeCategory(category: string | undefined): RuleCategory | null {
     if (!category) {
