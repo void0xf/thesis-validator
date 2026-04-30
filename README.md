@@ -44,7 +44,7 @@ I built this project to practice a realistic full-stack workflow: document parsi
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/void0xf/thesis-validator.git
 cd thesis-validator
 ```
 
