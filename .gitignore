@@ -1,4 +1,5 @@
 /backend.Tests/bin
+/.codex-*
 /.idea
 /backend.Tests/obj
 /backend/.idea
