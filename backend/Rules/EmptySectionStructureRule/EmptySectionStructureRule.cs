@@ -1,6 +1,6 @@
 using backend.Models;
 using backend.RuleOptions;
-using backend.Services.Extraction;
+using backend.ModernServices.Extraction;
 using ThesisValidator.Rules;
 
 namespace backend.Rules;
