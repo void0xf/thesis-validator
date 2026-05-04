@@ -11,15 +11,18 @@ import {
   ValidationResponse,
   CategoryGroup,
   HeadingInfo,
-  RuleCategory,
-  RULE_METADATA,
-  CATEGORY_INFO,
+  ValidationRule,
 } from '../../models/validation.models';
+import { buildRuleLookup } from '../../models/validation-display.models';
 import { ResultStatusBannerComponent } from './result-status-banner.component';
 import { ResultStatsGridComponent } from './result-stats-grid.component';
 import { ResultCategoryListComponent } from './result-category-list.component';
 import { ResultAllClearComponent } from './result-all-clear.component';
 import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.component';
+import {
+  buildCategoryGroups,
+  normalizeValidationResultsResponse,
+} from './validation-results.view-model';
 
 @Component({
   selector: 'app-validation-results',
@@ -50,7 +53,10 @@ import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.comp
       </div>
 
       @if (categoryGroups.length > 0) {
-        <app-result-category-list [categoryGroups]="categoryGroups" />
+        <app-result-category-list
+          [categoryGroups]="categoryGroups"
+          [ruleCatalog]="availableRules"
+        />
       }
 
       @if (headings.length) {
@@ -87,76 +93,36 @@ export class ValidationResultsComponent {
   @Output() onReset = new EventEmitter<void>();
 
   private _response!: ValidationResponse;
+  private ruleLookup = new Map<string, ValidationRule>();
+  availableRules: readonly ValidationRule[] = [];
   categoryGroups: CategoryGroup[] = [];
   headings: HeadingInfo[] = [];
 
+  @Input()
+  set ruleCatalog(value: readonly ValidationRule[] | null) {
+    this.availableRules = value ?? [];
+    this.ruleLookup = buildRuleLookup(this.availableRules);
+
+    if (this._response) {
+      this.categoryGroups = buildCategoryGroups(
+        this._response.results,
+        this.ruleLookup,
+      );
+    }
+  }
+
   @Input({ required: true })
   set response(value: ValidationResponse) {
-    const results = Array.isArray(value.results) ? value.results : [];
-    const headings = Array.isArray(value.headings) ? value.headings : [];
-    const totalErrors =
-      value.totalErrors ?? results.filter((result) => result.isError).length;
-    const totalWarnings =
-      value.totalWarnings ?? results.filter((result) => !result.isError).length;
-
-    this._response = {
-      ...value,
-      results,
-      headings,
-      totalErrors,
-      totalWarnings,
-      isValid: value.isValid ?? totalErrors === 0,
-    };
-    this.headings = headings;
-    this.categoryGroups = this.buildCategoryGroups(results);
+    this._response = normalizeValidationResultsResponse(value);
+    this.headings = this._response.headings ?? [];
+    this.categoryGroups = buildCategoryGroups(
+      this._response.results,
+      this.ruleLookup,
+    );
   }
 
   get response(): ValidationResponse {
     return this._response;
   }
 
-  private buildCategoryGroups(results: ValidationResponse['results']): CategoryGroup[] {
-    const groups: Map<RuleCategory, CategoryGroup> = new Map();
-
-    for (const result of results) {
-      const category =
-        this.normalizeCategory(result.category) ||
-        RULE_METADATA[result.ruleName]?.category ||
-        'formatting';
-
-      if (!groups.has(category)) {
-        groups.set(category, {
-          category,
-          displayName: CATEGORY_INFO[category]?.displayName || category,
-          icon: CATEGORY_INFO[category]?.icon || 'check',
-          results: [],
-          errorCount: 0,
-          warningCount: 0,
-        });
-      }
-
-      const group = groups.get(category)!;
-      group.results.push(result);
-      if (result.isError) {
-        group.errorCount++;
-      } else {
-        group.warningCount++;
-      }
-    }
-
-    return Array.from(groups.values()).sort(
-      (a, b) =>
-        (CATEGORY_INFO[a.category]?.order || 99) -
-        (CATEGORY_INFO[b.category]?.order || 99),
-    );
-  }
-
-  private normalizeCategory(category: string | undefined): RuleCategory | null {
-    if (!category) {
-      return null;
-    }
-
-    const normalized = category.toLowerCase() as RuleCategory;
-    return normalized in CATEGORY_INFO ? normalized : null;
-  }
 }

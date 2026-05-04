@@ -18,7 +18,10 @@ import { ValidationProgressComponent } from './components/validation-progress/va
 import { ValidationResultsComponent } from './components/validation-results/validation-results.component';
 import { ErrorToastComponent } from './components/error-toast/error-toast.component';
 import { ValidationService } from './services/validation.service';
-import { ValidationResponse } from './models/validation.models';
+import {
+  ValidationResponse,
+  ValidationRule,
+} from './models/validation.models';
 
 type AppState = 'upload' | 'validating' | 'results';
 
@@ -59,6 +62,7 @@ export class AppComponent {
   readonly selectedFile = signal<File | null>(null);
   readonly selectedRules = signal<string[]>([]);
   readonly draftSelectedRules = signal<string[]>([]);
+  readonly ruleCatalog = signal<ValidationRule[]>([]);
   readonly totalRuleCount = signal(0);
   readonly validationResponse = signal<ValidationResponse | null>(null);
   readonly errorMessage = signal<string | null>(null);
@@ -109,6 +113,10 @@ export class AppComponent {
     this.totalRuleCount.set(selection.total);
   }
 
+  onRuleCatalogChange(rules: ValidationRule[]): void {
+    this.ruleCatalog.set(rules);
+  }
+
   openRuleSettings(): void {
     this.draftSelectedRules.set([...this.selectedRules()]);
     this.ruleSelectorSyncKey.update((value) => value + 1);
@@ -127,6 +135,7 @@ export class AppComponent {
   validateDocument(): void {
     const file = this.selectedFile();
     if (!file) return;
+    const selectedRules = this.selectedRules();
 
     this.closeRuleSettings();
     this.appState.set('validating');
@@ -142,7 +151,7 @@ export class AppComponent {
     }, 800);
 
     this.validationService
-      .validateDocument(file, this.selectedRules())
+      .validateDocument(file, selectedRules)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -170,26 +179,22 @@ export class AppComponent {
   downloadAnnotated(): void {
     const file = this.selectedFile();
     if (!file) return;
-    if (this.selectedRules().length === 0 || this.downloadingAnnotated()) {
+    const selectedRules = this.selectedRules();
+    if (selectedRules.length === 0 || this.downloadingAnnotated()) {
       return;
     }
 
     this.downloadingAnnotated.set(true);
     this.errorMessage.set(null);
     this.validationService
-      .validateWithComments(file, this.selectedRules())
+      .validateWithComments(file, selectedRules)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.downloadingAnnotated.set(false)),
       )
       .subscribe({
         next: (blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = file.name.replace('.docx', '_annotated.docx');
-          link.click();
-          URL.revokeObjectURL(url);
+          this.downloadBlob(blob, this.getAnnotatedFileName(file.name));
         },
         error: (err) => {
           this.errorMessage.set(
@@ -248,5 +253,18 @@ export class AppComponent {
     }
 
     this.appState.set('upload');
+  }
+
+  private downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private getAnnotatedFileName(fileName: string): string {
+    return fileName.replace(/\.docx$/i, '_annotated.docx');
   }
 }

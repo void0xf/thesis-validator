@@ -90,6 +90,7 @@
                 [syncKey]="ruleSelectorSyncKey()"
                 (rulesChange)="onRulesChange($event)"
                 (selectionCountChange)="onRuleCountChange($event)"
+                (ruleCatalogChange)="onRuleCatalogChange($event)"
               />
 
               <div
@@ -179,6 +180,7 @@
         @if (validationResponse()) {
           <app-validation-results
             [response]="validationResponse()!"
+            [ruleCatalog]="ruleCatalog()"
             [downloadingAnnotated]="downloadingAnnotated()"
             (onDownloadAnnotated)="downloadAnnotated()"
             (onReset)="reset()"
