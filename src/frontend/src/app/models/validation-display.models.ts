@@ -118,7 +118,7 @@ export function toValidationRule(rule: RuleInfo): ValidationRule {
   return {
     name: rule.name,
     displayName: rule.displayName?.trim() || formatRuleDisplayName(rule.name),
-    description: rule.description?.trim() || undefined,
+    description: rule.description?.trim() || '',
     category: toRuleCategory(rule.category),
     severity: rule.defaultSeverity,
     enabled: rule.enabled ?? true,

@@ -23,7 +23,10 @@ public class FontFamilyRuleConfigurationTests
 
         var rules = service.GetAvailableRules();
 
-        Assert.Contains(rules, rule => rule.Id == FontFamilyRule.RuleId);
+        var rule = Assert.Single(rules, rule => rule.Id == FontFamilyRule.RuleId);
+        Assert.Equal(
+            "Finds text runs using a font family different from the required thesis font.",
+            rule.Description);
     }
 
     [Fact]

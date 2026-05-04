@@ -29,6 +29,7 @@ public sealed class RuleRunner
             .Select(pair => new AvailableValidationRule(
                 pair.Rule.Descriptor.Name,
                 pair.Rule.Descriptor.DisplayName,
+                pair.Rule.Descriptor.Description,
                 pair.Rule.Descriptor.Category,
                 pair.Policy.Severity.ToString()))
             .ToList();

@@ -74,6 +74,27 @@ public class DocumentEndpointTests
         Assert.Contains("MissingRule", problem.Detail);
     }
 
+    [Fact]
+    public void GetAvailableRules_IncludesRuleDescriptions()
+    {
+        var result = InvokeGetAvailableRules(
+            new TestValidationRule(
+                "FontFamily",
+                "Checks whether thesis text uses the configured font family."));
+
+        var value = AssertOk(result);
+        var rulesValue = value.GetType().GetProperty("Rules")?.GetValue(value);
+        var rules = Assert.IsAssignableFrom<IEnumerable<object>>(rulesValue);
+        var rule = Assert.Single(rules);
+
+        Assert.Equal(
+            "FontFamily",
+            rule.GetType().GetProperty("Name")?.GetValue(rule));
+        Assert.Equal(
+            "Checks whether thesis text uses the configured font family.",
+            rule.GetType().GetProperty("Description")?.GetValue(rule));
+    }
+
     [Theory]
     [InlineData(ValidateDocumentMethodName)]
     [InlineData(ValidateWithCommentsMethodName)]
@@ -162,6 +183,24 @@ public class DocumentEndpointTests
         return Assert.IsAssignableFrom<IResult>(result);
     }
 
+    private static IResult InvokeGetAvailableRules(params IValidationRule[] availableRules)
+    {
+        var method = typeof(DocumentEndpoint).GetMethod(
+            "GetAvailableRules",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var result = method.Invoke(
+            null,
+            new object?[]
+            {
+                CreateValidator(availableRules)
+            });
+
+        return Assert.IsAssignableFrom<IResult>(result);
+    }
+
     private static IFormFile CreateDocxFile()
     {
         var stream = new MemoryStream(new byte[] { 1 });
@@ -180,6 +219,17 @@ public class DocumentEndpointTests
             file,
             "thesis.docx",
             new List<string> { "FontFamily" })!;
+    }
+
+    private static object AssertOk(IResult result)
+    {
+        var resultType = result.GetType();
+        var statusCode = resultType.GetProperty("StatusCode")?.GetValue(result);
+        var value = resultType.GetProperty("Value")?.GetValue(result);
+
+        Assert.Equal(StatusCodes.Status200OK, statusCode);
+        Assert.NotNull(value);
+        return value;
     }
 
     private static ProblemDetails AssertBadRequest(IResult result)
@@ -211,16 +261,20 @@ public class DocumentEndpointTests
     private sealed class TestValidationRule : ValidationRule<TestValidationRuleOptions>
     {
         private readonly string _name;
+        private readonly string _description;
 
-        public TestValidationRule(string name)
+        public TestValidationRule(
+            string name,
+            string? description = null)
         {
             _name = name;
+            _description = description ?? name;
         }
 
         public override RuleDescriptor Descriptor => new(
             Name: _name,
             DisplayName: _name,
-            Description: _name,
+            Description: _description,
             Category: RuleCategories.Formatting,
             DefaultAvailability: RuleAvailability.Available,
             DefaultSeverity: RuleSeverity.Error);

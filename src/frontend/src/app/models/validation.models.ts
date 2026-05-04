@@ -39,7 +39,7 @@ export interface ValidationResponse {
 export interface RuleInfo {
   name: string;
   displayName?: string;
-  description?: string;
+  description: string;
   category?: string;
   defaultSeverity?: string;
   enabled?: boolean;
@@ -54,7 +54,7 @@ export interface RulesResponse {
 export interface ValidationRule {
   name: string;
   displayName: string;
-  description?: string;
+  description: string;
   category: RuleCategory;
   severity?: string;
   enabled: boolean;

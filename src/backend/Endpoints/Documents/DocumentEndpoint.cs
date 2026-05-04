@@ -120,6 +120,7 @@ public static class DocumentEndpoint
                 {
                     Name = rule.Id,
                     rule.DisplayName,
+                    rule.Description,
                     rule.Category,
                     rule.DefaultSeverity,
                 })

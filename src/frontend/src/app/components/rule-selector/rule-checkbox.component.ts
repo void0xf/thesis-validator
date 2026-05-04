@@ -41,9 +41,16 @@ import { ValidationRule } from '../../models/validation.models';
           {{ rule().displayName }}
         </p>
         @if (rule().description) {
-          <p class="font-body text-xs text-ink-500 mt-0.5 leading-relaxed">
-            {{ rule().description }}
-          </p>
+          <div class="mt-1.5 flex items-start gap-1.5 text-ink-500">
+            <lucide-icon
+              name="info"
+              class="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-academic-blue"
+              aria-hidden="true"
+            ></lucide-icon>
+            <p class="font-body text-xs leading-relaxed">
+              {{ rule().description }}
+            </p>
+          </div>
         }
       </div>
     </label>
