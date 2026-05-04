@@ -11,17 +11,13 @@ import { NavigationEnd, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { filter, finalize } from 'rxjs';
 import { HeaderComponent } from './components/header/header.component';
-import { FooterComponent } from './components/footer/footer.component';
 import { FileUploadComponent } from './components/file-upload/file-upload.component';
 import { RuleSelectorComponent } from './components/rule-selector/rule-selector.component';
 import { ValidationProgressComponent } from './components/validation-progress/validation-progress.component';
 import { ValidationResultsComponent } from './components/validation-results/validation-results.component';
 import { ErrorToastComponent } from './components/error-toast/error-toast.component';
 import { ValidationService } from './services/validation.service';
-import {
-  ValidationResponse,
-  ValidationRule,
-} from './models/validation.models';
+import { ValidationResponse, ValidationRule } from './models/validation.models';
 
 type AppState = 'upload' | 'validating' | 'results';
 
@@ -31,7 +27,6 @@ type AppState = 'upload' | 'validating' | 'results';
   imports: [
     LucideAngularModule,
     HeaderComponent,
-    FooterComponent,
     FileUploadComponent,
     RuleSelectorComponent,
     ValidationProgressComponent,

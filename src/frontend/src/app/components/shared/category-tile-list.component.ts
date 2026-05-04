@@ -46,7 +46,7 @@ export interface CategoryTileItem {
           [class.hover:bg-parchment-50]="selectedCategory() !== item.category"
           (click)="categorySelected.emit(item.category)"
         >
-          <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start justify-between gap-3 p-2">
             <div class="flex items-center gap-2 min-w-0">
               <div
                 class="w-7 h-7 rounded-md flex items-center justify-center"

@@ -69,9 +69,7 @@
                     Rule Settings
                   </h3>
                   <p class="font-sans text-xs text-ink-500 mt-0.5">
-                    {{ draftSelectedRules().length }}/{{
-                      totalRuleCount()
-                    }}
+                    {{ draftSelectedRules().length }}/{{ totalRuleCount() }}
                     selected
                   </p>
                 </div>
@@ -191,6 +189,4 @@
 
     <app-error-toast [message]="errorMessage()" (dismiss)="clearError()" />
   </main>
-
-  <app-footer />
 </div>
