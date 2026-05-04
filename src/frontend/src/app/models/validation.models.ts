@@ -36,11 +36,6 @@ export interface ValidationResponse {
   headings?: HeadingInfo[];
 }
 
-export interface ValidationOptions {
-  skipBeforeTableOfContents: boolean;
-  skipTextBoxes: boolean;
-}
-
 export interface RuleInfo {
   name: string;
   displayName?: string;

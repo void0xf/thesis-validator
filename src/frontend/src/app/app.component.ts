@@ -18,10 +18,7 @@ import { ValidationProgressComponent } from './components/validation-progress/va
 import { ValidationResultsComponent } from './components/validation-results/validation-results.component';
 import { ErrorToastComponent } from './components/error-toast/error-toast.component';
 import { ValidationService } from './services/validation.service';
-import {
-  ValidationOptions,
-  ValidationResponse,
-} from './models/validation.models';
+import { ValidationResponse } from './models/validation.models';
 
 type AppState = 'upload' | 'validating' | 'results';
 
@@ -62,10 +59,6 @@ export class AppComponent {
   readonly selectedFile = signal<File | null>(null);
   readonly selectedRules = signal<string[]>([]);
   readonly draftSelectedRules = signal<string[]>([]);
-  readonly skipBeforeTableOfContents = signal(false);
-  readonly draftSkipBeforeTableOfContents = signal(false);
-  readonly skipTextBoxes = signal(true);
-  readonly draftSkipTextBoxes = signal(true);
   readonly totalRuleCount = signal(0);
   readonly validationResponse = signal<ValidationResponse | null>(null);
   readonly errorMessage = signal<string | null>(null);
@@ -117,10 +110,6 @@ export class AppComponent {
 
   openRuleSettings(): void {
     this.draftSelectedRules.set([...this.selectedRules()]);
-    this.draftSkipBeforeTableOfContents.set(
-      this.skipBeforeTableOfContents(),
-    );
-    this.draftSkipTextBoxes.set(this.skipTextBoxes());
     this.ruleSelectorSyncKey.update((value) => value + 1);
     this.ruleSettingsOpen.set(true);
   }
@@ -131,19 +120,7 @@ export class AppComponent {
 
   applyRuleSettings(): void {
     this.selectedRules.set([...this.draftSelectedRules()]);
-    this.skipBeforeTableOfContents.set(
-      this.draftSkipBeforeTableOfContents(),
-    );
-    this.skipTextBoxes.set(this.draftSkipTextBoxes());
     this.closeRuleSettings();
-  }
-
-  toggleDraftSkipBeforeTableOfContents(): void {
-    this.draftSkipBeforeTableOfContents.update((value) => !value);
-  }
-
-  toggleDraftSkipTextBoxes(): void {
-    this.draftSkipTextBoxes.update((value) => !value);
   }
 
   validateDocument(): void {
@@ -164,7 +141,7 @@ export class AppComponent {
     }, 800);
 
     this.validationService
-      .validateDocument(file, this.selectedRules(), this.getValidationOptions())
+      .validateDocument(file, this.selectedRules())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -194,11 +171,7 @@ export class AppComponent {
     if (!file) return;
 
     this.validationService
-      .validateWithComments(
-        file,
-        this.selectedRules(),
-        this.getValidationOptions(),
-      )
+      .validateWithComments(file, this.selectedRules())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (blob) => {
@@ -248,13 +221,6 @@ export class AppComponent {
       clearInterval(this.stepIntervalId);
       this.stepIntervalId = null;
     }
-  }
-
-  private getValidationOptions(): ValidationOptions {
-    return {
-      skipBeforeTableOfContents: this.skipBeforeTableOfContents(),
-      skipTextBoxes: this.skipTextBoxes(),
-    };
   }
 
   private syncStateWithRoute(url: string): void {

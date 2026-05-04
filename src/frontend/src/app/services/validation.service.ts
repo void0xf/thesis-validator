@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
   HeadingInfo,
-  ValidationOptions,
   ValidationResult,
   ValidationResponse,
   RulesResponse,
@@ -25,9 +24,8 @@ export class ValidationService {
   validateDocument(
     file: File,
     selectedRules?: string[],
-    options?: ValidationOptions,
   ): Observable<ValidationResponse> {
-    const formData = this.createValidationFormData(file, selectedRules, options);
+    const formData = this.createValidationFormData(file, selectedRules);
     return this.http
       .post<ValidationResponse>(`${this.baseUrl}/validate`, formData)
       .pipe(map((response) => this.normalizeValidationResponse(response)));
@@ -36,9 +34,8 @@ export class ValidationService {
   validateWithComments(
     file: File,
     selectedRules?: string[],
-    options?: ValidationOptions,
   ): Observable<Blob> {
-    const formData = this.createValidationFormData(file, selectedRules, options);
+    const formData = this.createValidationFormData(file, selectedRules);
     return this.http.post(`${this.baseUrl}/validate-with-comments`, formData, {
       responseType: 'blob'
     });
@@ -51,7 +48,6 @@ export class ValidationService {
   private createValidationFormData(
     file: File,
     selectedRules?: string[],
-    options?: ValidationOptions,
   ): FormData {
     const formData = new FormData();
     formData.append('file', file);
