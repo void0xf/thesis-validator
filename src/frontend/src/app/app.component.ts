@@ -9,7 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { filter } from 'rxjs';
+import { filter, finalize } from 'rxjs';
 import { HeaderComponent } from './components/header/header.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { FileUploadComponent } from './components/file-upload/file-upload.component';
@@ -65,6 +65,7 @@ export class AppComponent {
   readonly currentValidationStep = signal(0);
   readonly ruleSettingsOpen = signal(false);
   readonly ruleSelectorSyncKey = signal(0);
+  readonly downloadingAnnotated = signal(false);
 
   // Derived state
   readonly canValidate = computed(
@@ -169,10 +170,18 @@ export class AppComponent {
   downloadAnnotated(): void {
     const file = this.selectedFile();
     if (!file) return;
+    if (this.selectedRules().length === 0 || this.downloadingAnnotated()) {
+      return;
+    }
 
+    this.downloadingAnnotated.set(true);
+    this.errorMessage.set(null);
     this.validationService
       .validateWithComments(file, this.selectedRules())
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.downloadingAnnotated.set(false)),
+      )
       .subscribe({
         next: (blob) => {
           const url = URL.createObjectURL(blob);

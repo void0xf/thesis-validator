@@ -118,17 +118,41 @@
         </div>
 
         <!-- Validate Button -->
-        <div class="mt-8 flex justify-center">
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
           <button
             type="button"
             class="btn-primary flex items-center gap-3 text-lg px-8 py-4"
-            [disabled]="!canValidate()"
-            [class.opacity-50]="!canValidate()"
-            [class.cursor-not-allowed]="!canValidate()"
+            [disabled]="!canValidate() || downloadingAnnotated()"
+            [class.opacity-50]="!canValidate() || downloadingAnnotated()"
+            [class.cursor-not-allowed]="
+              !canValidate() || downloadingAnnotated()
+            "
             (click)="validateDocument()"
           >
             <lucide-icon name="file-check" class="w-5 h-5"></lucide-icon>
             Validate Thesis
+          </button>
+
+          <button
+            type="button"
+            class="btn-secondary flex items-center gap-3 text-lg px-8 py-4"
+            [disabled]="!canValidate() || downloadingAnnotated()"
+            [class.opacity-50]="!canValidate() || downloadingAnnotated()"
+            [class.cursor-not-allowed]="
+              !canValidate() || downloadingAnnotated()
+            "
+            (click)="downloadAnnotated()"
+          >
+            @if (downloadingAnnotated()) {
+              <lucide-icon
+                name="loader-circle"
+                class="w-5 h-5 animate-spin"
+              ></lucide-icon>
+              Preparing Download
+            } @else {
+              <lucide-icon name="file-down" class="w-5 h-5"></lucide-icon>
+              Download Validated
+            }
           </button>
         </div>
 
@@ -155,6 +179,7 @@
         @if (validationResponse()) {
           <app-validation-results
             [response]="validationResponse()!"
+            [downloadingAnnotated]="downloadingAnnotated()"
             (onDownloadAnnotated)="downloadAnnotated()"
             (onReset)="reset()"
           />

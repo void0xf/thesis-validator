@@ -23,12 +23,17 @@ import {
   ChevronDown,
   Info,
   AlertTriangle,
+  TriangleAlert,
   XCircle,
+  CircleX,
   FileDown,
   MapPin,
   RotateCcw,
   Bookmark,
   Settings,
+  ListFilter,
+  SearchX,
+  LoaderCircle,
 } from 'lucide-angular';
 
 const icons = {
@@ -50,12 +55,17 @@ const icons = {
   ChevronDown,
   Info,
   AlertTriangle,
+  TriangleAlert,
   XCircle,
+  CircleX,
   FileDown,
   MapPin,
   RotateCcw,
   Bookmark,
   Settings,
+  ListFilter,
+  SearchX,
+  LoaderCircle,
 };
 
 export const appConfig: ApplicationConfig = {

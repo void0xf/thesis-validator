@@ -39,6 +39,7 @@ import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.comp
       <div class="paper-card-elevated results-surface overflow-hidden">
         <app-result-status-banner
           [response]="response"
+          [downloadingAnnotated]="downloadingAnnotated"
           (downloadAnnotated)="onDownloadAnnotated.emit()"
         />
         <app-result-stats-grid
@@ -81,6 +82,7 @@ import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.comp
   ],
 })
 export class ValidationResultsComponent {
+  @Input() downloadingAnnotated = false;
   @Output() onDownloadAnnotated = new EventEmitter<void>();
   @Output() onReset = new EventEmitter<void>();
 
