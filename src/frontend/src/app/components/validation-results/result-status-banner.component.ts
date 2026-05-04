@@ -29,10 +29,21 @@ import { ValidationResponse } from '../../models/validation.models';
           <button
             type="button"
             class="btn-secondary flex items-center gap-2"
+            [disabled]="downloadingAnnotated"
+            [class.opacity-50]="downloadingAnnotated"
+            [class.cursor-not-allowed]="downloadingAnnotated"
             (click)="downloadAnnotated.emit()"
           >
-            <lucide-icon name="file-down" class="w-4 h-4"></lucide-icon>
-            Download Annotated
+            @if (downloadingAnnotated) {
+              <lucide-icon
+                name="loader-circle"
+                class="w-4 h-4 animate-spin"
+              ></lucide-icon>
+              Preparing Download
+            } @else {
+              <lucide-icon name="file-down" class="w-4 h-4"></lucide-icon>
+              Download Annotated
+            }
           </button>
         }
       </div>
@@ -46,6 +57,7 @@ import { ValidationResponse } from '../../models/validation.models';
 })
 export class ResultStatusBannerComponent {
   @Input({ required: true }) response!: ValidationResponse;
+  @Input() downloadingAnnotated = false;
   @Output() downloadAnnotated = new EventEmitter<void>();
 
   get icon(): string {
