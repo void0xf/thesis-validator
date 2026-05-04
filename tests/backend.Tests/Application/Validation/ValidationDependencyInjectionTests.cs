@@ -1,6 +1,7 @@
 using ThesisValidationOrchestrator = backend.Application.Validation.ThesisValidator;
 using backend.Annotation;
 using backend.Application.Validation;
+using backend.DocumentProcessing.CodeBlocks;
 using backend.DocumentProcessing.Content;
 using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Documents;
@@ -35,12 +36,15 @@ public sealed class ValidationDependencyInjectionTests
         services.AddHttpClient<LanguageToolClient>();
         services.AddOptions<ValidationSkippingOptions>()
             .Bind(configuration.GetSection(ValidationSkippingOptions.SectionName));
+        services.AddOptions<CodeBlockDetectionOptions>()
+            .Bind(configuration.GetSection(CodeBlockDetectionOptions.SectionName));
 
         services.AddSingleton<ValidationIssueComposer>();
         services.AddSingleton<RulePolicyResolver>();
         services.AddSingleton<RuleOptionsBinder>();
         services.AddSingleton<DocumentSession>();
         services.AddSingleton<DocumentSkipResolver>();
+        services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
         services.AddSingleton<DocumentContentAnalyzer>();
         services.AddSingleton<FormattingResolver>();
         services.AddSingleton<ParagraphClassifier>();
@@ -71,10 +75,12 @@ public sealed class ValidationDependencyInjectionTests
         using var scope = provider.CreateScope();
 
         var validator = scope.ServiceProvider.GetRequiredService<ThesisValidationOrchestrator>();
+        var detector = scope.ServiceProvider.GetRequiredService<ICodeBlockDetector>();
         var ruleIds = validator.GetAvailableRules()
             .Select(rule => rule.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        Assert.NotNull(detector);
         Assert.Contains(FontFamilyRule.RuleId, ruleIds);
         Assert.Contains(GrammarRule.RuleId, ruleIds);
     }

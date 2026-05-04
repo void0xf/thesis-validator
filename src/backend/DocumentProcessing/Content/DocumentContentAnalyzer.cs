@@ -1,3 +1,4 @@
+using backend.DocumentProcessing.CodeBlocks;
 using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Content;
 using backend.DocumentProcessing.Figures;
@@ -11,11 +12,15 @@ namespace backend.DocumentProcessing.Content;
 public sealed class DocumentContentAnalyzer
 {
     private readonly DocumentSkipResolver _skipService;
+    private readonly ICodeBlockDetector? _codeBlockDetector;
 
-    public DocumentContentAnalyzer(DocumentSkipResolver? skipService = null)
+    public DocumentContentAnalyzer(
+        DocumentSkipResolver? skipService = null,
+        ICodeBlockDetector? codeBlockDetector = null)
     {
         _skipService = skipService
             ?? new DocumentSkipResolver(Options.Create(new ValidationSkippingOptions()));
+        _codeBlockDetector = codeBlockDetector;
     }
 
     public DocumentContent Analyze(WordprocessingDocument doc)
@@ -54,6 +59,16 @@ public sealed class DocumentContentAnalyzer
             var text = TextExtractor.GetParagraphText(
                 paragraph,
                 _skipService.SkipTextBoxes).Trim();
+
+            if (_codeBlockDetector is not null
+                && CodeBlockRuleSkipper.ShouldSkip(doc, paragraph, _codeBlockDetector))
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                    MarkIntroductoryContent(sectionStack);
+
+                continue;
+            }
+
             var headingLevel = HeadingDetection.GetHeadingLevel(doc, paragraph);
             var paragraphNode = new ParagraphNode
             {

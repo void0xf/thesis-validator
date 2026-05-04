@@ -1,6 +1,7 @@
 using System.Reflection;
 using backend.Annotation;
 using backend.Application.Validation;
+using backend.DocumentProcessing.CodeBlocks;
 using backend.DocumentProcessing.Content;
 using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Documents;
@@ -76,12 +77,19 @@ internal static class ServiceCollectionExtensions
         services.AddOptions<ValidationSkippingOptions>()
             .Bind(configuration.GetSection(ValidationSkippingOptions.SectionName))
             .ValidateOnStart();
+        services.AddOptions<CodeBlockDetectionOptions>()
+            .Bind(configuration.GetSection(CodeBlockDetectionOptions.SectionName))
+            .Validate(
+                options => options.MinimumCodeFontTextRatio is >= 0 and <= 1,
+                "Code block font text ratio must be between 0 and 1.")
+            .ValidateOnStart();
 
         services.AddSingleton<ValidationIssueComposer>();
         services.AddSingleton<RulePolicyResolver>();
         services.AddSingleton<RuleOptionsBinder>();
         services.AddSingleton<DocumentSession>();
         services.AddSingleton<DocumentSkipResolver>();
+        services.AddSingleton<ICodeBlockDetector, CodeBlockDetector>();
         services.AddSingleton<DocumentContentAnalyzer>();
         services.AddSingleton<FormattingResolver>();
         services.AddSingleton<ParagraphClassifier>();
