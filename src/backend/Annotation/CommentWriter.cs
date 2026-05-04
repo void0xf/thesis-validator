@@ -56,6 +56,27 @@ public sealed class CommentWriter
         paragraph.AppendChild(new Run(new CommentReference { Id = commentIdText }));
     }
 
+    public void AddCommentToTable(
+        WordprocessingDocument document,
+        Table table,
+        string commentText,
+        string author = "Thesis Validator")
+    {
+        var paragraph = table.Descendants<Paragraph>().FirstOrDefault();
+        if (paragraph is not null)
+        {
+            AddCommentToParagraph(document, paragraph, commentText, author);
+            return;
+        }
+
+        var firstCell = table.Descendants<TableCell>().FirstOrDefault();
+        if (firstCell is null)
+            return;
+
+        paragraph = firstCell.AppendChild(new Paragraph());
+        AddCommentToParagraph(document, paragraph, commentText, author);
+    }
+
     public static MemoryStream SaveDocumentWithComments(WordprocessingDocument document)
     {
         var outputStream = new MemoryStream();

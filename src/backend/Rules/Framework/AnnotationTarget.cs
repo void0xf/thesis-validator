@@ -7,3 +7,5 @@ public abstract record AnnotationTarget;
 public sealed record ParagraphAnnotationTarget(Paragraph Paragraph) : AnnotationTarget;
 
 public sealed record RunAnnotationTarget(Run Run) : AnnotationTarget;
+
+public sealed record TableAnnotationTarget(Table Table) : AnnotationTarget;

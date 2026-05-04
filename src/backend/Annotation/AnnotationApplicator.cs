@@ -41,6 +41,13 @@ public sealed class AnnotationApplicator
                     runTarget.Run,
                     problem.Message);
                 break;
+
+            case TableAnnotationTarget tableTarget:
+                commentService.AddCommentToTable(
+                    document,
+                    tableTarget.Table,
+                    problem.Message);
+                break;
         }
     }
 }
