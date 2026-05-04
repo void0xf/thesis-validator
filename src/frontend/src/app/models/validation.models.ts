@@ -135,9 +135,19 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that figure-like objects have captions',
     category: 'structure'
   },
+  'MissingTableCaptionRule': {
+    displayName: 'Missing Table Captions',
+    description: 'Checks that inserted tables have captions',
+    category: 'structure'
+  },
   'FigureCaptionPositionRule': {
     displayName: 'Figure Caption Position',
     description: 'Checks that figure captions are placed below figures',
+    category: 'structure'
+  },
+  'TableCaptionPositionRule': {
+    displayName: 'Table Caption Position',
+    description: 'Warns when table captions appear below tables',
     category: 'structure'
   },
   'FigureCaptionStyleRule': {
