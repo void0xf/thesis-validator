@@ -140,6 +140,11 @@ export const RULE_METADATA: Record<string, { displayName: string; description: s
     description: 'Checks that inserted tables have captions',
     category: 'structure'
   },
+  'MissingTextBoxCaptionRule': {
+    displayName: 'Missing Text Box Captions',
+    description: 'Warns when text boxes do not have captions',
+    category: 'structure'
+  },
   'FigureCaptionPositionRule': {
     displayName: 'Figure Caption Position',
     description: 'Checks that figure captions are placed below figures',

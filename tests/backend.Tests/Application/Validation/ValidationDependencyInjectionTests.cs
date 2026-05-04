@@ -84,6 +84,7 @@ public sealed class ValidationDependencyInjectionTests
         Assert.Contains(FontFamilyRule.RuleId, ruleIds);
         Assert.Contains(GrammarRule.RuleId, ruleIds);
         Assert.Contains(MissingTableCaptionRule.RuleId, ruleIds);
+        Assert.Contains(MissingTextBoxCaptionRule.RuleId, ruleIds);
         Assert.Contains(TableCaptionPositionRule.RuleId, ruleIds);
     }
 }

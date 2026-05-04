@@ -9,6 +9,7 @@ public static class TextBoxContentDetector
     private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private const string DrawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
     private const string VmlNamespace = "urn:schemas-microsoft-com:vml";
+    private const string WordprocessingShapeNamespace = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape";
 
     public static bool ContainsTextBoxContent(OpenXmlElement element)
     {
@@ -76,7 +77,8 @@ public static class TextBoxContentDetector
     {
         return IsWordprocessingElement(element, "txbxContent")
             || IsVmlElement(element, "textbox")
-            || IsDrawingElement(element, "txBody");
+            || IsDrawingElement(element, "txBody")
+            || IsWordprocessingShapeElement(element, "txbx");
     }
 
     private static bool ContainsElement(OpenXmlElement element, Func<OpenXmlElement, bool> predicate)
@@ -106,5 +108,10 @@ public static class TextBoxContentDetector
     private static bool IsVmlElement(OpenXmlElement element, string localName)
     {
         return element.LocalName == localName && element.NamespaceUri == VmlNamespace;
+    }
+
+    private static bool IsWordprocessingShapeElement(OpenXmlElement element, string localName)
+    {
+        return element.LocalName == localName && element.NamespaceUri == WordprocessingShapeNamespace;
     }
 }
