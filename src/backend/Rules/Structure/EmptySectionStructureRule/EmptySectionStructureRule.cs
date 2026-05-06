@@ -22,7 +22,7 @@ public sealed class EmptySectionStructureRule : ValidationRule<EmptySectionStruc
         Name: RuleId,
         DisplayName: "Empty Sections",
         Description: "Finds headings/sections with no content.",
-        Category: RuleCategories.Language,
+        Category: RuleCategories.Structure,
         DefaultAvailability: RuleAvailability.Available,
         DefaultSeverity: RuleSeverity.Error);
 
