@@ -68,14 +68,6 @@ export class ResultIssueListComponent {
 
   private readonly displayLimit = signal(this.pageSize);
   private readonly virtualStart = signal(0);
-  private readonly resetWindow = effect(
-    () => {
-      this.results();
-      this.displayLimit.set(this.pageSize);
-      this.virtualStart.set(0);
-    },
-    { allowSignalWrites: true },
-  );
 
   private readonly ruleLookup = computed(() =>
     buildRuleLookup(this.ruleCatalog()),
@@ -106,7 +98,9 @@ export class ResultIssueListComponent {
   });
 
   readonly hasMore = computed(
-    () => this.paginated() && this.results().length > this.displayedResults().length,
+    () =>
+      this.paginated() &&
+      this.results().length > this.displayedResults().length,
   );
   readonly remainingCount = computed(() =>
     Math.max(0, this.results().length - this.displayedResults().length),
@@ -121,8 +115,8 @@ export class ResultIssueListComponent {
     const { start, end } = this.virtualWindow();
     return results.slice(start, end);
   });
-  readonly topSpacerHeight = computed(() =>
-    this.virtualWindow().start * this.estimatedRowHeight,
+  readonly topSpacerHeight = computed(
+    () => this.virtualWindow().start * this.estimatedRowHeight,
   );
   readonly bottomSpacerHeight = computed(() =>
     Math.max(
@@ -131,6 +125,17 @@ export class ResultIssueListComponent {
         this.estimatedRowHeight,
     ),
   );
+
+  constructor() {
+    effect(
+      () => {
+        this.results();
+        this.displayLimit.set(this.pageSize);
+        this.virtualStart.set(0);
+      },
+      { allowSignalWrites: true },
+    );
+  }
 
   getDisplayName(ruleName: string): string {
     return getRuleDisplayName(ruleName, this.ruleLookup());
@@ -149,8 +154,6 @@ export class ResultIssueListComponent {
     const approximateStart = Math.floor(
       element.scrollTop / this.estimatedRowHeight,
     );
-    this.virtualStart.set(
-      Math.max(0, approximateStart - this.viewportBuffer),
-    );
+    this.virtualStart.set(Math.max(0, approximateStart - this.viewportBuffer));
   }
 }

@@ -18,11 +18,6 @@ public sealed class CodeBlockDetector : ICodeBlockDetector
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    public static ICodeBlockDetector CreateDefault()
-    {
-        return new CodeBlockDetector(Options.Create(new CodeBlockDetectionOptions()));
-    }
-
     public bool IsCodeBlock(Paragraph paragraph, MainDocumentPart mainPart)
     {
         return Analyze(paragraph, mainPart).IsCodeBlock;

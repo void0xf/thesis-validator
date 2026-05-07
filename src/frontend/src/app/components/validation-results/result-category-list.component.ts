@@ -5,10 +5,7 @@ import {
   input,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  CategoryGroup,
-  ValidationRule,
-} from '../../models/validation.models';
+import { CategoryGroup, ValidationRule } from '../../models/validation.models';
 import { CategoryTileListComponent } from '../shared/category-tile-list.component';
 import { ResultCategoryDetailComponent } from './result-category-detail.component';
 import { ResultCategoryListStore } from './result-category-list.store';
@@ -89,10 +86,12 @@ export class ResultCategoryListComponent {
   readonly ruleCatalog = input<readonly ValidationRule[]>([]);
   readonly store = new ResultCategoryListStore();
 
-  private readonly bindInputs = effect(
-    () => {
-      this.store.setInputs(this.categoryGroups(), this.ruleCatalog());
-    },
-    { allowSignalWrites: true },
-  );
+  constructor() {
+    effect(
+      () => {
+        this.store.setInputs(this.categoryGroups(), this.ruleCatalog());
+      },
+      { allowSignalWrites: true },
+    );
+  }
 }

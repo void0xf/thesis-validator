@@ -1,4 +1,10 @@
-import { Component, Input, Output, EventEmitter, computed, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { ValidationResponse } from '../../models/validation.models';
@@ -12,7 +18,10 @@ import { ValidationResponse } from '../../models/validation.models';
     <div class="px-6 py-4" [class]="bannerClass">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center" [class]="iconBgClass">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center"
+            [class]="iconBgClass"
+          >
             <lucide-icon [name]="icon" class="w-6 h-6"></lucide-icon>
           </div>
           <div>
@@ -49,11 +58,13 @@ import { ValidationResponse } from '../../models/validation.models';
       </div>
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-    }
-  `]
+  styles: [
+    `
+      :host {
+        display: block;
+      }
+    `,
+  ],
 })
 export class ResultStatusBannerComponent {
   @Input({ required: true }) response!: ValidationResponse;
@@ -73,14 +84,18 @@ export class ResultStatusBannerComponent {
   }
 
   get bannerClass(): string {
-    if (this.response.isValid) return 'bg-gradient-to-r from-academic-green/10 to-academic-green/5';
-    if (this.response.totalErrors > 0) return 'bg-gradient-to-r from-academic-red/10 to-academic-red/5';
+    if (this.response.isValid)
+      return 'bg-gradient-to-r from-academic-green/10 to-academic-green/5';
+    if (this.response.totalErrors > 0)
+      return 'bg-gradient-to-r from-academic-red/10 to-academic-red/5';
     return 'bg-gradient-to-r from-academic-gold/10 to-academic-gold/5';
   }
 
   get iconBgClass(): string {
-    if (this.response.isValid) return 'bg-academic-green/20 text-academic-green';
-    if (this.response.totalErrors > 0) return 'bg-academic-red/20 text-academic-red';
+    if (this.response.isValid)
+      return 'bg-academic-green/20 text-academic-green';
+    if (this.response.totalErrors > 0)
+      return 'bg-academic-red/20 text-academic-red';
     return 'bg-academic-gold/20 text-academic-gold';
   }
 

@@ -1,11 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  LucideAngularModule,
-  GraduationCap,
-  BookOpen,
-  FileCheck,
-} from 'lucide-angular';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-header',

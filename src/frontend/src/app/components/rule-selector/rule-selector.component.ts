@@ -89,24 +89,26 @@ export class RuleSelectorComponent {
   readonly ruleCatalogChange = output<ValidationRule[]>();
   readonly store = inject(RuleSelectorStore);
   private readonly destroyRef = inject(DestroyRef);
-
   private hasSeenInitialSyncKey = false;
-  private readonly syncSelectionEffect = effect(
-    () => {
-      this.syncKey();
-      const selectedRuleNames = this.selectedRuleNames();
-
-      if (!this.hasSeenInitialSyncKey) {
-        this.hasSeenInitialSyncKey = true;
-        return;
-      }
-
-      untracked(() => this.store.syncSelectionFromInput(selectedRuleNames));
-    },
-    { allowSignalWrites: true },
-  );
 
   constructor() {
+    effect(
+      () => {
+        this.syncKey();
+        const selectedRuleNames = this.selectedRuleNames();
+
+        if (!this.hasSeenInitialSyncKey) {
+          this.hasSeenInitialSyncKey = true;
+          return;
+        }
+
+        untracked(() =>
+          this.store.syncSelectionFromInput(selectedRuleNames),
+        );
+      },
+      { allowSignalWrites: true },
+    );
+
     this.store.stateChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.publishSelection());

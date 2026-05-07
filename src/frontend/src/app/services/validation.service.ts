@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import {
-  HeadingInfo,
   ValidationResult,
   ValidationResponse,
   RulesResponse,
@@ -11,7 +10,7 @@ import {
 import { environment } from '../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ValidationService {
   private readonly http = inject(HttpClient);
@@ -31,18 +30,11 @@ export class ValidationService {
       .pipe(map((response) => this.normalizeValidationResponse(response)));
   }
 
-  validateWithComments(
-    file: File,
-    selectedRules?: string[],
-  ): Observable<Blob> {
+  validateWithComments(file: File, selectedRules?: string[]): Observable<Blob> {
     const formData = this.createValidationFormData(file, selectedRules);
     return this.http.post(`${this.baseUrl}/validate-with-comments`, formData, {
-      responseType: 'blob'
+      responseType: 'blob',
     });
-  }
-
-  healthCheck(): Observable<{ status: string; timestamp: string }> {
-    return this.http.get<{ status: string; timestamp: string }>(`${this.baseUrl}/health`);
   }
 
   private createValidationFormData(
@@ -65,9 +57,6 @@ export class ValidationService {
     const results: ValidationResult[] = Array.isArray(response.results)
       ? response.results
       : [];
-    const headings: HeadingInfo[] = Array.isArray(response.headings)
-      ? response.headings
-      : [];
     const totalErrors =
       response.totalErrors ?? results.filter((result) => result.isError).length;
     const totalWarnings =
@@ -77,7 +66,6 @@ export class ValidationService {
     return {
       ...response,
       results,
-      headings,
       totalErrors,
       totalWarnings,
       isValid: response.isValid ?? totalErrors === 0,
