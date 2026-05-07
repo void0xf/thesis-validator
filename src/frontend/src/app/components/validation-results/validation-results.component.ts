@@ -10,7 +10,6 @@ import { LucideAngularModule } from 'lucide-angular';
 import {
   ValidationResponse,
   CategoryGroup,
-  HeadingInfo,
   ValidationRule,
 } from '../../models/validation.models';
 import { buildRuleLookup } from '../../models/validation-display.models';
@@ -18,7 +17,6 @@ import { ResultStatusBannerComponent } from './result-status-banner.component';
 import { ResultStatsGridComponent } from './result-stats-grid.component';
 import { ResultCategoryListComponent } from './result-category-list.component';
 import { ResultAllClearComponent } from './result-all-clear.component';
-import { ResultHeadingHierarchyComponent } from './result-heading-hierarchy.component';
 import {
   buildCategoryGroups,
   normalizeValidationResultsResponse,
@@ -34,7 +32,6 @@ import {
     ResultStatsGridComponent,
     ResultCategoryListComponent,
     ResultAllClearComponent,
-    ResultHeadingHierarchyComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -57,10 +54,6 @@ import {
           [categoryGroups]="categoryGroups"
           [ruleCatalog]="availableRules"
         />
-      }
-
-      @if (headings.length) {
-        <app-result-heading-hierarchy [headings]="headings" />
       }
 
       @if (response.isValid) {
@@ -96,7 +89,6 @@ export class ValidationResultsComponent {
   private ruleLookup = new Map<string, ValidationRule>();
   availableRules: readonly ValidationRule[] = [];
   categoryGroups: CategoryGroup[] = [];
-  headings: HeadingInfo[] = [];
 
   @Input()
   set ruleCatalog(value: readonly ValidationRule[] | null) {
@@ -114,7 +106,6 @@ export class ValidationResultsComponent {
   @Input({ required: true })
   set response(value: ValidationResponse) {
     this._response = normalizeValidationResultsResponse(value);
-    this.headings = this._response.headings ?? [];
     this.categoryGroups = buildCategoryGroups(
       this._response.results,
       this.ruleLookup,
@@ -124,5 +115,4 @@ export class ValidationResultsComponent {
   get response(): ValidationResponse {
     return this._response;
   }
-
 }

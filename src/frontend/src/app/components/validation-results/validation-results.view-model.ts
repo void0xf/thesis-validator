@@ -14,7 +14,6 @@ export function normalizeValidationResultsResponse(
   value: ValidationResponse,
 ): ValidationResponse {
   const results = Array.isArray(value.results) ? value.results : [];
-  const headings = Array.isArray(value.headings) ? value.headings : [];
   const totalErrors =
     value.totalErrors ?? results.filter((result) => result.isError).length;
   const totalWarnings =
@@ -23,7 +22,6 @@ export function normalizeValidationResultsResponse(
   return {
     ...value,
     results,
-    headings,
     totalErrors,
     totalWarnings,
     isValid: value.isValid ?? totalErrors === 0,

@@ -1,13 +1,10 @@
 export interface DocumentLocation {
-  pageNumber: number;
-  lineNumber: number;
   paragraph: number;
   run: number;
   characterOffset: number;
   length: number;
   text: string;
   section: string;
-  description: string;
 }
 
 export interface ValidationResult {
@@ -19,11 +16,6 @@ export interface ValidationResult {
   location: DocumentLocation | null;
 }
 
-export interface HeadingInfo {
-  level: number;
-  text: string;
-}
-
 export interface ValidationResponse {
   fileName: string;
   fileSize: number;
@@ -31,9 +23,7 @@ export interface ValidationResponse {
   isValid: boolean;
   totalErrors: number;
   totalWarnings: number;
-  configUsed: string;
   results: ValidationResult[];
-  headings?: HeadingInfo[];
 }
 
 export interface RuleInfo {
