@@ -22,7 +22,7 @@ public sealed partial class SingleSpaceRule : ValidationRule<SingleSpaceRuleOpti
         Description: "Finds places where words are separated by multiple spaces.",
         Category: RuleCategories.Formatting,
         DefaultAvailability: RuleAvailability.Available,
-        DefaultSeverity: RuleSeverity.Error);
+        DefaultSeverity: RuleSeverity.Warning);
 
     [GeneratedRegex(@"  +", RegexOptions.Compiled)]
     private static partial Regex MultipleSpacesRegex();

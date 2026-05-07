@@ -14,7 +14,5 @@ public sealed class DocumentValidationResponse
 
     public int TotalWarnings { get; set; }
 
-    public string ConfigUsed { get; set; } = string.Empty;
-
     public List<ValidationIssueResponse> Results { get; set; } = [];
 }
