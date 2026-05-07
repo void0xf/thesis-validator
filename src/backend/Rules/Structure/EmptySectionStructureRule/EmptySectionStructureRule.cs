@@ -16,7 +16,7 @@ namespace backend.Rules;
 /// </summary>
 public sealed class EmptySectionStructureRule : ValidationRule<EmptySectionStructureRuleOptions>
 {
-    public const string RuleId = "EmptySectionStructureRule";
+    public const string RuleId = nameof(EmptySectionStructureRule);
 
     public override RuleDescriptor Descriptor => new(
         Name: RuleId,

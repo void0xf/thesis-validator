@@ -11,7 +11,7 @@ namespace backend.Rules;
 
 public sealed class ParagraphIndentRule : ValidationRule<ParagraphIndentRuleOptions>
 {
-    public const string RuleId = "RequiredIndentCm";
+    public const string RuleId = nameof(ParagraphIndentRule);
 
     private readonly FormattingResolver _formattingResolver;
     private readonly ParagraphClassifier _paragraphClassifier;

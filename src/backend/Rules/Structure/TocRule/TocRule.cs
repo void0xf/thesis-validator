@@ -11,7 +11,7 @@ namespace backend.Rules;
 
 public sealed class TocRule : ValidationRule<TocRuleOptions>
 {
-    public const string RuleId = "CheckTableOfContents";
+    public const string RuleId = nameof(TocRule);
 
     public override RuleDescriptor Descriptor => new(
         Name: RuleId,

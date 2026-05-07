@@ -10,7 +10,7 @@ namespace backend.Rules;
 
 public sealed class ManualTableOfContentsRule : ValidationRule<ManualTableOfContentsRuleOptions>
 {
-    public const string RuleId = "ManualTableOfContents";
+    public const string RuleId = nameof(ManualTableOfContentsRule);
 
     private const string ManualTableOfContentsMessage =
         "A table of contents section was detected, but no automatic Word TOC field was found. The table of contents was probably created manually and may become inconsistent with the document structure.";

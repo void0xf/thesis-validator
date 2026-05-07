@@ -1,3 +1,4 @@
+using backend.DocumentProcessing.Context;
 using backend.DocumentProcessing.Tables;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisValidator.Rules;
@@ -10,6 +11,13 @@ namespace backend.Rules;
 public sealed class MissingTableCaptionRule : ValidationRule<MissingTableCaptionRuleOptions>
 {
     public const string RuleId = nameof(MissingTableCaptionRule);
+
+    private readonly DocumentSkipResolver? _skipResolver;
+
+    public MissingTableCaptionRule(DocumentSkipResolver? skipResolver = null)
+    {
+        _skipResolver = skipResolver;
+    }
 
     public override RuleDescriptor Descriptor => new(
         Name: RuleId,
@@ -28,6 +36,7 @@ public sealed class MissingTableCaptionRule : ValidationRule<MissingTableCaption
             yield break;
 
         var children = body.ChildElements;
+        var firstIncludedChildIndex = _skipResolver?.GetFirstIncludedBodyChildIndex(context.RawDocument) ?? 0;
         var paragraphIndex = 0;
 
         for (var childIndex = 0; childIndex < children.Count; childIndex++)
@@ -35,6 +44,9 @@ public sealed class MissingTableCaptionRule : ValidationRule<MissingTableCaption
             var child = children[childIndex];
             if (child is Paragraph)
                 paragraphIndex++;
+
+            if (childIndex < firstIncludedChildIndex)
+                continue;
 
             if (child is not Table table || !TableCaptionDetection.IsRealTable(table))
                 continue;

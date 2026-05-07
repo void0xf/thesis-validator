@@ -14,7 +14,7 @@ namespace backend.Rules;
 /// </summary>
 public sealed class GrammarRule : ValidationRule<GrammarRuleOptions>
 {
-    public const string RuleId = "Grammar";
+    public const string RuleId = nameof(GrammarRule);
 
     private const string DefaultLanguage = "pl-PL";
 
@@ -31,7 +31,7 @@ public sealed class GrammarRule : ValidationRule<GrammarRuleOptions>
         Description: "Finds grammar and spelling issues using LanguageTool.",
         Category: RuleCategories.Language,
         DefaultAvailability: RuleAvailability.Available,
-        DefaultSeverity: RuleSeverity.Error);
+        DefaultSeverity: RuleSeverity.Warning);
 
     public override IEnumerable<RuleProblem> Validate(
         RuleContext context,
