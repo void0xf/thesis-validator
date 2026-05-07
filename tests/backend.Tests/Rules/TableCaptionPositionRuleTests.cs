@@ -1,8 +1,10 @@
+using backend.DocumentProcessing.Context;
 using backend.Rules;
 using backend.Tests.Helpers;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Tests.Rules;
@@ -59,6 +61,18 @@ public sealed class TableCaptionPositionRuleTests
     }
 
     [Fact]
+    public void Validate_WhenTableIsBeforeTableOfContents_DoesNotReportCaptionBelow()
+    {
+        var problems = ValidateWithSkipBeforeTableOfContents(
+            RealTable(),
+            Paragraph("Table 1. Results"),
+            Paragraph("Spis tresci"),
+            Paragraph("Introduction"));
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
     public void Validate_ProblemLocationUsesBodyParagraphIndex()
     {
         var problems = Validate(
@@ -87,6 +101,25 @@ public sealed class TableCaptionPositionRuleTests
         };
 
         return new TableCaptionPositionRule()
+            .Validate(context, new TableCaptionPositionRuleOptions())
+            .ToList();
+    }
+
+    private static IReadOnlyList<RuleProblem> ValidateWithSkipBeforeTableOfContents(
+        params OpenXmlElement[] bodyChildren)
+    {
+        using var docx = CreateInMemoryDocx(bodyChildren);
+        var context = new RuleContext
+        {
+            RawDocument = docx.Document,
+            Content = new DocumentContent()
+        };
+        var skipResolver = new DocumentSkipResolver(Options.Create(new ValidationSkippingOptions
+        {
+            SkipBeforeTableOfContents = true
+        }));
+
+        return new TableCaptionPositionRule(skipResolver)
             .Validate(context, new TableCaptionPositionRuleOptions())
             .ToList();
     }

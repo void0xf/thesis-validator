@@ -1,10 +1,12 @@
 using backend.Annotation;
 using backend.Application.Validation;
+using backend.DocumentProcessing.Context;
 using backend.Rules;
 using backend.Tests.Helpers;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Options;
 using ThesisValidator.Rules;
 
 namespace backend.Tests.Rules;
@@ -49,6 +51,17 @@ public sealed class MissingTableCaptionRuleTests
     public void Validate_WhenOpenXmlTableHasNoCells_DoesNotTreatItAsRealTable()
     {
         var problems = Validate(new Table());
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void Validate_WhenTableIsBeforeTableOfContents_DoesNotReport()
+    {
+        var problems = ValidateWithSkipBeforeTableOfContents(
+            RealTable(),
+            Paragraph("Spis tresci"),
+            Paragraph("Introduction"));
 
         Assert.Empty(problems);
     }
@@ -107,6 +120,25 @@ public sealed class MissingTableCaptionRuleTests
         };
 
         return new MissingTableCaptionRule()
+            .Validate(context, new MissingTableCaptionRuleOptions())
+            .ToList();
+    }
+
+    private static IReadOnlyList<RuleProblem> ValidateWithSkipBeforeTableOfContents(
+        params OpenXmlElement[] bodyChildren)
+    {
+        using var docx = CreateInMemoryDocx(bodyChildren);
+        var context = new RuleContext
+        {
+            RawDocument = docx.Document,
+            Content = new DocumentContent()
+        };
+        var skipResolver = new DocumentSkipResolver(Options.Create(new ValidationSkippingOptions
+        {
+            SkipBeforeTableOfContents = true
+        }));
+
+        return new MissingTableCaptionRule(skipResolver)
             .Validate(context, new MissingTableCaptionRuleOptions())
             .ToList();
     }
